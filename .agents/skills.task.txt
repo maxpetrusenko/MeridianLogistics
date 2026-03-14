@@ -1,0 +1,10 @@
+# @domains: contract-freeze, permissioning, structured-response, evals
+# Resolved task manifest for the current contract-freeze phase.
+brainstorming
+writing-plans
+verification-before-completion
+api-security-best-practices
+auth-implementation-patterns
+security-requirement-extraction
+threat-mitigation-mapping
+requesting-code-review

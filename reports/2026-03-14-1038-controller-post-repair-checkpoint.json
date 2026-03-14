@@ -1,0 +1,60 @@
+{
+  "checkpoint_id": "controller-post-repair-2026-03-14-1038",
+  "checkpoint_version": "0.1.0",
+  "created_at": "2026-03-14T10:38:56Z",
+  "protected_core": {
+    "task_goal": "Resume the main agent at post-repair verification and reporting using current repo evidence, while keeping closed lanes closed and preserving default-off behavior.",
+    "expected_output": "Contract-valid verification checkpoint and superseding controller report.",
+    "current_step": "Record fresh validation, supersede the stale runtime-hook blocker note, and continue with current default-off execution.",
+    "resume_point": "Continue main execution in default-off mode from current repo truth. Reopen any closed lane only with an exact failing assertion, exact file path, and exact contradiction text.",
+    "hard_constraints": [
+      "Accepted contracts remain frozen.",
+      "Only controller may emit final ABORT.",
+      "Missing evidence fails soft to HOLD or REVIEW, never ABORT.",
+      "Do not enable controller flags globally unless explicitly requested.",
+      "Do not reopen closed lanes without the required exact blocker packet."
+    ],
+    "business_invariants": [
+      "Memphis-only 90 day PoC scope remains frozen.",
+      "Single-step booking remains the only in-scope write contract.",
+      "Instinct8 runtime-hook capability stays additive and default-off.",
+      "B4 remains closed.",
+      "B5 remains green."
+    ]
+  },
+  "compaction": {
+    "strategy_name": "Strategy B - Codex-Style Checkpoint",
+    "compaction_sequence": 4,
+    "halo_summary": "Fresh controller validation confirms the runtime-hook slice is complete and the earlier blocker note in the 1018 report is stale relative to live repo state.",
+    "recent_turn_ids": [],
+    "drift_status": "stable"
+  },
+  "validated_artifacts": [
+    "reports/2026-03-14-1027-controller-next-wave-checkpoint.json",
+    "reports/2026-03-14-1018-controller-post-b4-report.md",
+    "backend/app/config.py",
+    "backend/app/controller/runtime.py",
+    "backend/app/orchestrator/graph.py",
+    "tests/controller/test_controller_runtime.py",
+    "contracts/controller-checkpoint-schema.json"
+  ],
+  "active_failure_signal": {
+    "kind": "none",
+    "severity": "none",
+    "source": "controller",
+    "details": null
+  },
+  "controller_last_decision": {
+    "action": "continue",
+    "reason": "fresh_validation_supersedes_stale_runtime_blocker_note",
+    "source": "controller"
+  },
+  "queue": {
+    "wave_name": "Decision Tightening",
+    "status": "active",
+    "run_policy": "auto",
+    "eligible": true,
+    "requires_explicit_request": false
+  },
+  "terminal_state": null
+}

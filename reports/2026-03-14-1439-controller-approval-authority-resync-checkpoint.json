@@ -1,0 +1,64 @@
+{
+  "checkpoint_id": "controller-approval-authority-resync-2026-03-14-1439",
+  "checkpoint_version": "0.1.0",
+  "created_at": "2026-03-14T18:40:15Z",
+  "protected_core": {
+    "task_goal": "Resync controller truth after approval-authority split so queue, checkpoint, report, and dispatch semantics agree.",
+    "expected_output": "Fresh controller checkpoint/report pair and aligned dispatch truth for internal-vs-user approval semantics.",
+    "current_step": "Promote the next internal controller-owned wave without rewriting its run_policy semantics.",
+    "resume_point": "Controlled Flag-On Validation is internally approved by Main and should continue as the active queued wave.",
+    "hard_constraints": [
+      "Accepted contracts remain frozen.",
+      "Only controller may emit final ABORT.",
+      "Missing evidence fails soft to HOLD or REVIEW, never ABORT.",
+      "Do not enable controller flags globally unless explicitly requested.",
+      "Do not reopen closed lanes without the required exact blocker packet."
+    ],
+    "business_invariants": [
+      "Memphis-only 90 day PoC scope remains frozen.",
+      "Instinct8 runtime-hook capability stays additive and default-off.",
+      "B4 remains closed.",
+      "Internal controller-owned approvals stay separate from run_policy semantics."
+    ]
+  },
+  "compaction": {
+    "strategy_name": "Strategy B - Codex-Style Checkpoint",
+    "compaction_sequence": 9,
+    "halo_summary": "Approval authority now stays separate from run_policy. Controlled Flag-On Validation is Main-approved, active, and still explicit_request.",
+    "recent_turn_ids": [],
+    "drift_status": "stable"
+  },
+  "validated_artifacts": [
+    "backend/app/controller/policy.py",
+    "backend/app/controller/runtime.py",
+    "tests/controller/test_controller_policy.py",
+    "tests/controller/test_controller_runtime.py",
+    "tests/controller/test_controller_scaffold.py",
+    "decisions.md",
+    "runbook.md",
+    "docs/plans/queue-finalization-contract.md",
+    "dispatch-board.md",
+    "artifact-ledger.md",
+    "contracts/controller-checkpoint-schema.json"
+  ],
+  "active_failure_signal": {
+    "kind": "none",
+    "severity": "none",
+    "source": "controller",
+    "details": null
+  },
+  "controller_last_decision": {
+    "action": "continue",
+    "reason": "main_self_approved_internal_wave_recorded",
+    "source": "controller"
+  },
+  "queue": {
+    "wave_name": "Controlled Flag-On Validation",
+    "status": "active",
+    "run_policy": "explicit_request",
+    "eligible": true,
+    "requires_explicit_request": false,
+    "approval_authority": "main"
+  },
+  "terminal_state": null
+}

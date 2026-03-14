@@ -1,0 +1,257 @@
+version: 0.2.0
+artifact: contracts/tool-schema.yaml
+status: draft_ready_for_review
+authoritative_inputs:
+  - prd.md
+  - architecture-overview.md
+  - security-model.md
+  - backlog.md
+  - decisions.md
+
+scope_boundary:
+  deployment_scope: memphis_only
+  time_box: 90_day_poc
+  allowed_capabilities:
+    - read_queries
+    - single_step_booking
+  out_of_scope:
+    - multi_office_rollout
+    - multi_step_workflows
+    - general_status_update_writes
+    - notification_dispatch
+    - open_ended_autonomous_actions
+
+locked_contract_decisions:
+  day_one_runtime_roles:
+    - broker
+  permission_injection: below_prompt_and_tool_selection
+  status_update_writes: out_of_scope
+  notification_behavior: informational_only
+
+contract_refs:
+  permission_context: contracts/permission-context.json
+  response_schema: contracts/agent-response-schema.json
+
+execution_model:
+  read_tools:
+    confirmation_required: false
+    access_mode: allowlisted_templates_only
+    system_injected_context_required: true
+  pre_confirmation_tools:
+    confirmation_required: false
+    access_mode: allowlisted_booking_review_only
+    system_injected_context_required: true
+  write_tools:
+    confirmation_required: true
+    access_mode: allowlisted_single_action_only
+    system_injected_context_required: true
+
+tool_families:
+  read_tools:
+    description: Office-scoped operational reads over approved data shapes only.
+    blocked_query_shapes:
+      - unbounded_scans
+      - raw_schema_exploration
+      - unrestricted_column_selection
+      - unrestricted_cross_office_comparison
+      - protected_field_projection
+      - unsupported_freeform_joins
+    allowed_response_components:
+      - message_block
+      - table
+      - metric_card
+      - timeline
+    tools:
+      - name: shipment_metrics_lookup
+        intent: aggregation
+        description: Return office-scoped shipment metrics for an approved lane or time window.
+        mode: read
+        confirmation_required: false
+        parameters:
+          user_supplied:
+            required:
+              - metric
+              - date_range
+            optional:
+              - shipment_mode
+              - origin_region
+              - destination_region
+          system_injected:
+            required:
+              - broker_id
+              - office_id
+              - role
+        result_shape:
+          primary: metric_card
+          optional:
+            - table
+        safety_rules:
+          - metric must map to an allowlisted aggregation
+          - date_range must be bounded
+          - office filtering is applied from trusted permission context before execution
+
+      - name: carrier_ranking_lookup
+        intent: ranking
+        description: Rank carriers for an approved office-scoped freight segment.
+        mode: read
+        confirmation_required: false
+        parameters:
+          user_supplied:
+            required:
+              - ranking_metric
+              - shipment_mode
+              - date_range
+            optional:
+              - lane
+              - weight_class
+              - region
+              - limit
+          system_injected:
+            required:
+              - broker_id
+              - office_id
+              - role
+        result_shape:
+          primary: table
+          optional:
+            - metric_card
+        safety_rules:
+          - limit must be bounded
+          - ranking_metric must be allowlisted
+          - protected rate fields must never be returned
+
+      - name: shipment_exception_lookup
+        intent: multi_table_lookup
+        description: Return office-scoped shipment exceptions or risk conditions for in-transit freight.
+        mode: read
+        confirmation_required: false
+        parameters:
+          user_supplied:
+            required:
+              - exception_type
+            optional:
+              - shipment_state
+              - carrier_filter
+              - eta_window
+              - insurance_expiry_window
+              - limit
+          system_injected:
+            required:
+              - broker_id
+              - office_id
+              - role
+        result_shape:
+          primary: table
+          optional:
+            - timeline
+        safety_rules:
+          - exception_type must map to an approved query template
+          - limit must be bounded
+          - only office-authorized records may be returned
+
+  pre_confirmation_tools:
+    description: Build reviewable booking confirmation payloads without executing a write.
+    required_preconditions:
+      - write intent classified separately from read intent
+      - trusted permission context available
+      - requested shape matches approved single_step_booking scope
+    tools:
+      - name: booking_create_prepare
+        intent: single_step_booking_preview
+        description: Build the confirmation payload for one approved booking action without executing the gateway call.
+        mode: write_preview
+        confirmation_required: false
+        single_step_booking_definition:
+          required_business_inputs:
+            - quote_id
+            - carrier_id
+            - pickup_date
+          disallowed_shapes:
+            - negotiated_booking
+            - multi_leg_booking
+            - workflow_requiring_follow_up_approval
+            - workflow_requiring_notification_dispatch
+            - workflow_requiring_manual_exception_resolution
+        confirmation_contract:
+          required_fields:
+            - confirmation_token
+            - actor_broker_id
+            - office_id
+            - quote_id
+            - carrier_id
+            - pickup_date
+          expires_on:
+            - quote_state_change
+            - shipment_state_change
+            - confirmation_timeout
+        parameters:
+          user_supplied:
+            required:
+              - quote_id
+              - carrier_id
+              - pickup_date
+            optional:
+              - equipment_type
+              - note
+          system_injected:
+            required:
+              - broker_id
+              - office_id
+              - role
+        result_shape:
+          primary: confirmation_card
+          optional:
+            - message_block
+            - table
+        safety_rules:
+          - no write endpoint call is allowed before explicit confirmation
+          - office scope must match trusted permission context
+          - booking target must be eligible when the confirmation payload is built
+
+  write_tools:
+    description: Explicitly confirmed single-step booking executions only.
+    required_preconditions:
+      - trusted permission context available
+      - confirmation token validated
+      - current resource state revalidated at execution time
+      - confirmation payload shown to user before execution
+    tools:
+      - name: booking_create_confirmed
+        intent: single_step_booking_execution
+        description: Execute one approved booking action after explicit user confirmation.
+        mode: write
+        confirmation_required: true
+        parameters:
+          user_supplied:
+            required:
+              - confirmation_token
+            optional: []
+          system_injected:
+            required:
+              - broker_id
+              - office_id
+              - role
+        result_shape:
+          primary: message_block
+          optional:
+            - table
+        safety_rules:
+          - execution allowed only after confirmation token validation
+          - office scope must match trusted permission context
+          - booking target must still be eligible at execution time
+          - audit record must capture requester, confirmer, action, and outcome
+
+unsupported_requests:
+  read:
+    - direct_sensitive_field_requests
+    - raw_sql_submission
+    - unapproved_cross_office_comparison
+  write:
+    - status_update_actions
+    - notification_dispatch
+    - multi_step_booking_orchestration
+    - any_action_without_explicit_confirmation
+
+review_follow_ups:
+  - Confirm the exact endpoint contract behind booking execution.
+  - Confirm the final count of approved read templates for v0 coverage.

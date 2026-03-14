@@ -1,0 +1,58 @@
+{
+  "checkpoint_id": "controller-no-active-wave-2026-03-14-1110",
+  "checkpoint_version": "0.1.0",
+  "created_at": "2026-03-14T11:10:09Z",
+  "protected_core": {
+    "task_goal": "Mark the finished decision-tightening wave complete and align repo truth so no active wave is shown when no runnable wave remains.",
+    "expected_output": "Contract-valid controller checkpoint and queue state showing no active wave.",
+    "current_step": "Close the finished controller follow-up decision-tightening wave and declare no active wave in current repo state.",
+    "resume_point": "No active wave. Wait for either an explicit controlled flag-on validation request or a new artifact-backed blocker packet.",
+    "hard_constraints": [
+      "Accepted contracts remain frozen.",
+      "Only controller may emit final ABORT.",
+      "Missing evidence fails soft to HOLD or REVIEW, never ABORT.",
+      "Do not enable controller flags globally unless explicitly requested.",
+      "Do not reopen closed lanes without the required exact blocker packet."
+    ],
+    "business_invariants": [
+      "Memphis-only 90 day PoC scope remains frozen.",
+      "Single-step booking remains the only in-scope write contract.",
+      "Instinct8 runtime-hook capability stays additive and default-off.",
+      "B4 remains closed.",
+      "B5 remains green."
+    ]
+  },
+  "compaction": {
+    "strategy_name": "Strategy B - Codex-Style Checkpoint",
+    "compaction_sequence": 5,
+    "halo_summary": "Decision-tightening is complete, queue truth is aligned, and there is no active wave in current repo state. Controlled flag-on validation remains dormant until explicitly requested.",
+    "recent_turn_ids": [],
+    "drift_status": "stable"
+  },
+  "validated_artifacts": [
+    "dispatch-board.md",
+    "artifact-ledger.md",
+    "reports/2026-03-14-1038-controller-post-repair-checkpoint.json",
+    "reports/2026-03-14-1038-controller-post-repair-report.md",
+    "contracts/controller-checkpoint-schema.json"
+  ],
+  "active_failure_signal": {
+    "kind": "none",
+    "severity": "none",
+    "source": "controller",
+    "details": null
+  },
+  "controller_last_decision": {
+    "action": "continue",
+    "reason": "finished_wave_closed_no_runnable_wave_remains",
+    "source": "controller"
+  },
+  "queue": {
+    "wave_name": "Controlled Flag-On Validation",
+    "status": "queued",
+    "run_policy": "explicit_request",
+    "eligible": false,
+    "requires_explicit_request": true
+  },
+  "terminal_state": "WAITING_APPROVAL"
+}

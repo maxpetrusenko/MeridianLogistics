@@ -1,0 +1,52 @@
+{
+  "skills": [
+    {
+      "name": "brainstorming",
+      "source": "local",
+      "rev": "",
+      "allowScripts": false
+    },
+    {
+      "name": "writing-plans",
+      "source": "local",
+      "rev": "",
+      "allowScripts": false
+    },
+    {
+      "name": "verification-before-completion",
+      "source": "local",
+      "rev": "",
+      "allowScripts": false
+    },
+    {
+      "name": "api-security-best-practices",
+      "source": "local",
+      "rev": "",
+      "allowScripts": false
+    },
+    {
+      "name": "auth-implementation-patterns",
+      "source": "local",
+      "rev": "",
+      "allowScripts": false
+    },
+    {
+      "name": "security-requirement-extraction",
+      "source": "local",
+      "rev": "",
+      "allowScripts": false
+    },
+    {
+      "name": "threat-mitigation-mapping",
+      "source": "local",
+      "rev": "",
+      "allowScripts": false
+    },
+    {
+      "name": "requesting-code-review",
+      "source": "local",
+      "rev": "",
+      "allowScripts": false
+    }
+  ]
+}

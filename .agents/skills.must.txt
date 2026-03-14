@@ -1,0 +1,7 @@
+# @domains: contracts, security, eval, workflow-discipline
+# Project-local must-have skills for this repo.
+brainstorming
+writing-plans
+verification-before-completion
+api-security-best-practices
+auth-implementation-patterns

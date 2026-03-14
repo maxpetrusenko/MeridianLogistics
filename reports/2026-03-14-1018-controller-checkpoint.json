@@ -1,0 +1,64 @@
+{
+  "checkpoint_id": "controller-post-b4-2026-03-14-1018",
+  "checkpoint_version": "0.1.0",
+  "created_at": "2026-03-14T10:18:20Z",
+  "protected_core": {
+    "task_goal": "Maintain controller-truth repo state and carry forward the accepted Memphis PoC build without reopening closed lanes on weak evidence.",
+    "expected_output": "Contract-valid controller checkpoint, updated control docs, and next-wave queue.",
+    "current_step": "Keep the current B4 lane closed and route into controller runtime-hook repair from the exact runtime test blocker.",
+    "resume_point": "Start controller runtime-hook repair from tests/controller/test_controller_runtime.py and backend/app/config.py; do not reopen B4 unless a new blocker packet includes the exact failing assertion, exact file path, and exact contract contradiction text.",
+    "hard_constraints": [
+      "Accepted contracts remain frozen.",
+      "Only controller may emit final ABORT.",
+      "Missing evidence fails soft to HOLD or REVIEW, never ABORT.",
+      "Do not reopen B4 without an exact failing assertion, exact file path, and exact contract contradiction text."
+    ],
+    "business_invariants": [
+      "Memphis-only 90 day PoC scope remains frozen.",
+      "Single-step booking remains the only in-scope write contract.",
+      "B1 and B2+B3 stay accepted.",
+      "B5 stays green on fresh workspace verification.",
+      "Current B4 lane is closed."
+    ]
+  },
+  "compaction": {
+    "strategy_name": "Strategy B - Codex-Style Checkpoint",
+    "compaction_sequence": 1,
+    "halo_summary": "B5 is green on fresh workspace verification. B4 current lane is closed by controller policy, not reopened. The next wave is controller runtime-hook repair because tests/controller/test_controller_runtime.py fails on missing AppConfig controller fields.",
+    "recent_turn_ids": [],
+    "drift_status": "stable"
+  },
+  "validated_artifacts": [
+    "dispatch-board.md",
+    "artifact-ledger.md",
+    "decisions.md",
+    "contracts/controller-checkpoint-schema.json",
+    "contracts/tests/validate_controller_checkpoint_contract.py",
+    "backend/app/controller/precedence.py",
+    "tests/controller/test_controller_scaffold.py",
+    "tests/controller/test_controller_runtime.py",
+    "backend/app/config.py",
+    "backend/app/orchestrator/graph.py",
+    "evals/runner.py",
+    "tests/b5/test_b5_scaffold.py"
+  ],
+  "active_failure_signal": {
+    "kind": "controller_runtime_config_gap",
+    "severity": "recoverable",
+    "source": "validator",
+    "details": "tests/controller/test_controller_runtime.py fails because backend/app/config.py AppConfig does not accept controller_checkpoints_enabled, controller_precedence_enabled, or controller_checkpoint_dir."
+  },
+  "controller_last_decision": {
+    "action": "repair",
+    "reason": "exact_runtime_test_blocker_routes_next_wave_to_repair",
+    "source": "validator"
+  },
+  "queue": {
+    "wave_name": "Controller Runtime-Hook Repair",
+    "status": "active",
+    "run_policy": "auto",
+    "eligible": true,
+    "requires_explicit_request": false
+  },
+  "terminal_state": null
+}

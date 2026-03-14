@@ -1,0 +1,70 @@
+{
+  "checkpoint_id": "controller-hardening-closeout-2026-03-14-1332",
+  "checkpoint_version": "0.1.0",
+  "created_at": "2026-03-14T13:32:37-04:00",
+  "protected_core": {
+    "task_goal": "Complete controller/orchestrator hardening so Main can continue automatically across safe waves and stop only on explicit terminal states.",
+    "expected_output": "Verified controller policy/runtime/docs plus a contract-valid closeout checkpoint that preserves current queue truth.",
+    "current_step": "Record controller hardening completion and preserve the explicit-request terminal state in controller truth.",
+    "resume_point": "Stay in WAITING_APPROVAL for Controlled Flag-On Validation until an explicit request arrives or a fresh exact blocker packet forces a new in-scope wave.",
+    "hard_constraints": [
+      "Accepted contracts remain frozen.",
+      "Only controller may emit final ABORT.",
+      "Missing evidence fails soft to HOLD or REVIEW, never ABORT.",
+      "Do not enable controller flags globally unless explicitly requested.",
+      "Do not reopen closed lanes without the required exact blocker packet."
+    ],
+    "business_invariants": [
+      "Memphis-only 90 day PoC scope remains frozen.",
+      "Instinct8 runtime-hook capability stays additive and default-off.",
+      "B4 remains closed.",
+      "Controlled flag-on validation is user-request gated."
+    ]
+  },
+  "compaction": {
+    "strategy_name": "Strategy B - Codex-Style Checkpoint",
+    "compaction_sequence": 7,
+    "halo_summary": "Controller hardening is complete. Stage packets now carry full metadata, control-plane truth alignment is enforced before terminal stops, checkpoint truth persists queue state, and the current state remains WAITING_APPROVAL for the explicit-request validation wave.",
+    "recent_turn_ids": [],
+    "drift_status": "stable"
+  },
+  "validated_artifacts": [
+    "backend/app/controller/policy.py",
+    "backend/app/controller/models.py",
+    "backend/app/controller/runtime.py",
+    "backend/app/orchestrator/graph.py",
+    "tests/controller/test_controller_policy.py",
+    "tests/controller/test_controller_runtime.py",
+    "tests/controller/test_controller_scaffold.py",
+    "tests/b1/test_b1_scaffold.py",
+    "tests/b2b3/test_b2b3_scaffold.py",
+    "tests/b5/test_b5_scaffold.py",
+    "contracts/controller-checkpoint-schema.json",
+    "contracts/tests/validate_controller_checkpoint_contract.py",
+    "contracts/tests/validate_active_contracts.py",
+    "decisions.md",
+    "runbook.md",
+    "dispatch-board.md",
+    "artifact-ledger.md",
+    "reports/README.md"
+  ],
+  "active_failure_signal": {
+    "kind": "none",
+    "severity": "none",
+    "source": "controller",
+    "details": null
+  },
+  "controller_last_decision": {
+    "action": "continue",
+    "reason": "controller_hardening_complete_terminal_state_preserved",
+    "source": "controller"
+  },
+  "queue": {
+    "wave_name": "Controlled Flag-On Validation",
+    "status": "queued",
+    "run_policy": "explicit_request",
+    "eligible": false,
+    "requires_explicit_request": true
+  },
+  "terminal_state": "WAITING_APPROVAL"
+}

@@ -1,0 +1,7 @@
+# @domains: contracts, security-review, eval-review
+# Helpful but not mandatory for the current phase.
+security-requirement-extraction
+threat-mitigation-mapping
+requesting-code-review
+dispatching-parallel-agents
+architecture-decision-records

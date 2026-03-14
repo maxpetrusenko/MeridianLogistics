@@ -1,0 +1,44 @@
+# Repo-local agent runtime noise
+.codex/
+.claude/
+.cursor/
+.idea/
+.vscode/
+
+# Keep tracked project control docs under .agents/.
+# Ignore only transient runtime state if it appears later.
+.agents/cache/
+.agents/tmp/
+.agents/sessions/
+
+# Local generated registries or vendored agent bundles
+agents/
+skills/
+
+# OS noise
+.DS_Store
+
+# Local env and logs
+.env
+.env.local
+.env.*
+!.env.example
+*.log
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+*.pyc
+*.pyo
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Local controller runtime state
+.controller-checkpoints/

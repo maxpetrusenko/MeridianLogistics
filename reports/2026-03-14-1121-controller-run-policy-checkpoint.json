@@ -1,0 +1,58 @@
+{
+  "checkpoint_id": "controller-run-policy-2026-03-14-1121",
+  "checkpoint_version": "0.1.0",
+  "created_at": "2026-03-14T11:21:49Z",
+  "protected_core": {
+    "task_goal": "Tighten controller run-to-completion rules so wave completion deterministically promotes the next eligible wave or reaches an explicit terminal state.",
+    "expected_output": "Updated controller docs, queue surface, and a contract-valid checkpoint for run-policy semantics.",
+    "current_step": "Record run_policy, eligibility, and terminal-state logic in controller truth.",
+    "resume_point": "If a future auto wave becomes eligible, activate it immediately. If only explicit-request waves remain, return WAITING_APPROVAL with the exact wave name.",
+    "hard_constraints": [
+      "Accepted contracts remain frozen.",
+      "Only controller may emit final ABORT.",
+      "Missing evidence fails soft to HOLD or REVIEW, never ABORT.",
+      "Do not enable controller flags globally unless explicitly requested.",
+      "Do not reopen closed lanes without the required exact blocker packet."
+    ],
+    "business_invariants": [
+      "Memphis-only 90 day PoC scope remains frozen.",
+      "Instinct8 runtime-hook capability stays additive and default-off.",
+      "B4 remains closed.",
+      "Controlled flag-on validation is user-request gated."
+    ]
+  },
+  "compaction": {
+    "strategy_name": "Strategy B - Codex-Style Checkpoint",
+    "compaction_sequence": 6,
+    "halo_summary": "Controller truth now encodes wave run_policy, eligibility, and terminal-state rules. Current state is WAITING_APPROVAL because only an explicit-request wave remains.",
+    "recent_turn_ids": [],
+    "drift_status": "stable"
+  },
+  "validated_artifacts": [
+    "dispatch-board.md",
+    "artifact-ledger.md",
+    "decisions.md",
+    "runbook.md",
+    "reports/README.md",
+    "contracts/controller-checkpoint-schema.json"
+  ],
+  "active_failure_signal": {
+    "kind": "none",
+    "severity": "none",
+    "source": "controller",
+    "details": null
+  },
+  "controller_last_decision": {
+    "action": "continue",
+    "reason": "run_policy_and_terminal_state_rules_recorded",
+    "source": "controller"
+  },
+  "queue": {
+    "wave_name": "Controlled Flag-On Validation",
+    "status": "queued",
+    "run_policy": "explicit_request",
+    "eligible": false,
+    "requires_explicit_request": true
+  },
+  "terminal_state": "WAITING_APPROVAL"
+}

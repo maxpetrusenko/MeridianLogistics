@@ -1,0 +1,744 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract_name": "agent_response",
+  "contract_version": "0.1.0",
+  "status": "draft_ready_for_review",
+  "authoritative_inputs": [
+    "prd.md",
+    "architecture-overview.md",
+    "backlog.md",
+    "decisions.md"
+  ],
+  "description": "Structured response envelope for Memphis PoC read answers, denials, and booking confirmation flows.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "response_id",
+    "request_id",
+    "intent_class",
+    "status",
+    "summary",
+    "components",
+    "policy",
+    "audit"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "intent_class": {
+            "const": "read_result"
+          }
+        },
+        "required": [
+          "intent_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "success"
+          },
+          "audit": {
+            "type": "object",
+            "properties": {
+              "tool_path": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_class": {
+            "const": "read_denied"
+          }
+        },
+        "required": [
+          "intent_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "denied"
+          },
+          "actions": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_class": {
+            "const": "write_confirmation_required"
+          }
+        },
+        "required": [
+          "intent_class"
+        ]
+      },
+      "then": {
+        "required": [
+          "actions"
+        ],
+        "properties": {
+          "status": {
+            "const": "confirmation_required"
+          },
+          "components": {
+            "contains": {
+              "$ref": "#/$defs/confirmation_card_component"
+            }
+          },
+          "actions": {
+            "allOf": [
+              {
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "action_type"
+                  ],
+                  "properties": {
+                    "action_type": {
+                      "const": "confirm_booking"
+                    }
+                  }
+                }
+              },
+              {
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "action_type"
+                  ],
+                  "properties": {
+                    "action_type": {
+                      "const": "cancel_booking"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "policy": {
+            "type": "object",
+            "required": [
+              "write_confirmation_required"
+            ],
+            "properties": {
+              "write_confirmation_required": {
+                "const": true
+              }
+            }
+          },
+          "audit": {
+            "type": "object",
+            "properties": {
+              "tool_path": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_class": {
+            "const": "write_submitted"
+          }
+        },
+        "required": [
+          "intent_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "submitted"
+          },
+          "actions": {
+            "maxItems": 0
+          },
+          "audit": {
+            "type": "object",
+            "properties": {
+              "tool_path": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_class": {
+            "const": "write_denied"
+          }
+        },
+        "required": [
+          "intent_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "denied"
+          },
+          "actions": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_class": {
+            "const": "error"
+          }
+        },
+        "required": [
+          "intent_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "error"
+          },
+          "actions": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_class": {
+            "not": {
+              "const": "write_confirmation_required"
+            }
+          }
+        },
+        "required": [
+          "intent_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "components": {
+            "not": {
+              "contains": {
+                "$ref": "#/$defs/confirmation_card_component"
+              }
+            }
+          },
+          "actions": {
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/action_button"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "action_type"
+                  ],
+                  "properties": {
+                    "action_type": {
+                      "enum": [
+                        "open_details",
+                        "request_refinement"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "policy": {
+            "type": "object",
+            "required": [
+              "write_confirmation_required"
+            ],
+            "properties": {
+              "write_confirmation_required": {
+                "const": false
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "response_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trace_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "intent_class": {
+      "type": "string",
+      "enum": [
+        "read_result",
+        "read_denied",
+        "write_confirmation_required",
+        "write_submitted",
+        "write_denied",
+        "error"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "denied",
+        "confirmation_required",
+        "submitted",
+        "error"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "follow_up_prompt": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/message_block_component"
+          },
+          {
+            "$ref": "#/$defs/table_component"
+          },
+          {
+            "$ref": "#/$defs/metric_card_component"
+          },
+          {
+            "$ref": "#/$defs/timeline_component"
+          },
+          {
+            "$ref": "#/$defs/confirmation_card_component"
+          }
+        ]
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/action_button"
+      },
+      "default": []
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "permission_context_applied",
+        "sensitive_fields_redacted",
+        "write_confirmation_required"
+      ],
+      "properties": {
+        "permission_context_applied": {
+          "type": "boolean",
+          "const": true
+        },
+        "sensitive_fields_redacted": {
+          "type": "boolean",
+          "const": true
+        },
+        "write_confirmation_required": {
+          "type": "boolean"
+        },
+        "denial_reason_class": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "permission",
+            "sensitive_field",
+            "unsupported_request",
+            "stale_state",
+            "query_safety",
+            "none",
+            null
+          ]
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_role",
+        "office_scope",
+        "tool_path",
+        "response_generated_at"
+      ],
+      "properties": {
+        "actor_role": {
+          "type": "string",
+          "enum": [
+            "broker"
+          ]
+        },
+        "office_scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tool_path": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "response_generated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "component_base": {
+      "type": "object",
+      "required": [
+        "component_id",
+        "component_type"
+      ],
+      "properties": {
+        "component_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "component_type": {
+          "type": "string"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "message_block_component": {
+      "unevaluatedProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/component_base"
+        },
+        {
+          "type": "object",
+          "required": [
+            "component_type",
+            "body"
+          ],
+          "properties": {
+            "component_type": {
+              "const": "message_block"
+            },
+            "body": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tone": {
+              "type": "string",
+              "enum": [
+                "informational",
+                "warning",
+                "error"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "table_component": {
+      "unevaluatedProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/component_base"
+        },
+        {
+          "type": "object",
+          "required": [
+            "component_type",
+            "columns",
+            "rows"
+          ],
+          "properties": {
+            "component_type": {
+              "const": "table"
+            },
+            "columns": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "label",
+                  "data_type"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "data_type": {
+                    "type": "string",
+                    "enum": [
+                      "string",
+                      "number",
+                      "date",
+                      "datetime",
+                      "status"
+                    ]
+                  }
+                }
+              }
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "metric_card_component": {
+      "unevaluatedProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/component_base"
+        },
+        {
+          "type": "object",
+          "required": [
+            "component_type",
+            "metrics"
+          ],
+          "properties": {
+            "component_type": {
+              "const": "metric_card"
+            },
+            "metrics": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "label",
+                  "value"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": [
+                      "string",
+                      "number"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "timeline_component": {
+      "unevaluatedProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/component_base"
+        },
+        {
+          "type": "object",
+          "required": [
+            "component_type",
+            "events"
+          ],
+          "properties": {
+            "component_type": {
+              "const": "timeline"
+            },
+            "events": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "label",
+                  "timestamp"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "timestamp": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "confirmation_card_component": {
+      "unevaluatedProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/component_base"
+        },
+        {
+          "type": "object",
+          "required": [
+            "component_type",
+            "action_name",
+            "confirmation_token",
+            "expires_at",
+            "fields"
+          ],
+          "properties": {
+            "component_type": {
+              "const": "confirmation_card"
+            },
+            "action_name": {
+              "type": "string",
+              "const": "booking_create_confirmed"
+            },
+            "confirmation_token": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expires_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "fields": {
+              "type": "array",
+              "minItems": 3,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "label",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": [
+                      "string",
+                      "number"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "action_button": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "action_type"
+      ],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_type": {
+          "type": "string",
+          "enum": [
+            "open_details",
+            "request_refinement",
+            "confirm_booking",
+            "cancel_booking"
+          ]
+        }
+      }
+    }
+  }
+}

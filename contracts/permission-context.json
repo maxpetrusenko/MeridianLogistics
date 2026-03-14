@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract_name": "permission_context",
+  "contract_version": "0.2.0",
+  "status": "draft_ready_for_review",
+  "authoritative_inputs": [
+    "prd.md",
+    "architecture-overview.md",
+    "security-model.md",
+    "decisions.md"
+  ],
+  "description": "Trusted execution context injected below the prompt and tool-selection layer for every approved read or write request.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "claims",
+    "role_shape",
+    "subject_scope",
+    "safety_context"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "claims": {
+            "type": "object",
+            "required": [
+              "role"
+            ],
+            "properties": {
+              "role": {
+                "const": "broker"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "role_shape": {
+            "type": "object",
+            "required": [
+              "role",
+              "runtime_access",
+              "office_scope_mode",
+              "record_scope_mode",
+              "cross_office_access"
+            ],
+            "properties": {
+              "role": {
+                "const": "broker"
+              },
+              "runtime_access": {
+                "const": "day_one_enabled"
+              },
+              "office_scope_mode": {
+                "const": "single_office"
+              },
+              "record_scope_mode": {
+                "enum": [
+                  "assigned_or_office",
+                  "office_only"
+                ]
+              },
+              "cross_office_access": {
+                "const": false
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "broker_id",
+        "office_id",
+        "role"
+      ],
+      "properties": {
+        "broker_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Signed broker identity from the verified JWT."
+        },
+        "office_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Signed office identifier from the verified JWT. For the current PoC this must resolve to the Memphis deployment office."
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "broker"
+          ],
+          "description": "Signed role claim used for Memphis PoC runtime authorization shaping."
+        },
+        "token_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issued_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "role_shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "runtime_access",
+        "office_scope_mode",
+        "record_scope_mode",
+        "cross_office_access"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "broker"
+          ]
+        },
+        "runtime_access": {
+          "type": "string",
+          "enum": [
+            "day_one_enabled"
+          ],
+          "description": "Brokers are the only runtime users in the Memphis PoC contract."
+        },
+        "office_scope_mode": {
+          "type": "string",
+          "enum": [
+            "single_office"
+          ]
+        },
+        "record_scope_mode": {
+          "type": "string",
+          "enum": [
+            "assigned_or_office",
+            "office_only"
+          ]
+        },
+        "cross_office_access": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must stay false for Memphis PoC runtime traffic."
+        }
+      }
+    },
+    "subject_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_scope",
+        "allowed_office_ids",
+        "resource_owner_broker_id",
+        "sensitive_field_policy"
+      ],
+      "properties": {
+        "deployment_scope": {
+          "type": "string",
+          "enum": [
+            "memphis_only"
+          ]
+        },
+        "allowed_office_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Resolved office scope after claim verification."
+        },
+        "resource_owner_broker_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Optional owner context for flows that require assigned-record enforcement."
+        },
+        "sensitive_field_policy": {
+          "type": "string",
+          "enum": [
+            "never_expose"
+          ]
+        }
+      }
+    },
+    "safety_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "read_path_policy",
+        "write_path_policy",
+        "read_confirmation_required",
+        "pre_confirmation_required",
+        "write_execution_confirmation_required",
+        "audit_required",
+        "deny_on_missing_context",
+        "deny_on_scope_mismatch",
+        "deny_on_sensitive_field_request"
+      ],
+      "properties": {
+        "read_path_policy": {
+          "type": "string",
+          "enum": [
+            "allowlisted_tools_only"
+          ]
+        },
+        "write_path_policy": {
+          "type": "string",
+          "enum": [
+            "allowlisted_single_step_booking_only"
+          ]
+        },
+        "read_confirmation_required": {
+          "type": "boolean",
+          "const": false
+        },
+        "pre_confirmation_required": {
+          "type": "boolean",
+          "const": false
+        },
+        "write_execution_confirmation_required": {
+          "type": "boolean",
+          "const": true
+        },
+        "audit_required": {
+          "type": "boolean",
+          "const": true
+        },
+        "deny_on_missing_context": {
+          "type": "boolean",
+          "const": true
+        },
+        "deny_on_scope_mismatch": {
+          "type": "boolean",
+          "const": true
+        },
+        "deny_on_sensitive_field_request": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    }
+  }
+}

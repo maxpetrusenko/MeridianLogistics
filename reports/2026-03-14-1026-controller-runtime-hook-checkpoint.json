@@ -1,0 +1,63 @@
+{
+  "checkpoint_id": "controller-runtime-hook-complete-2026-03-14-1026",
+  "checkpoint_version": "0.1.0",
+  "created_at": "2026-03-14T10:26:04Z",
+  "protected_core": {
+    "task_goal": "Maintain controller-truth repo state, keep additive controller runtime-hook capability available behind flags, and continue default-off legacy behavior until explicitly requested otherwise.",
+    "expected_output": "Contract-valid controller checkpoint, updated control docs, and post-Instinct8 queue state.",
+    "current_step": "Mark the Instinct8 Integration Lane complete and record runtime-hook capability as available behind flags.",
+    "resume_point": "Continue from default-off behavior. Reopen controller runtime-hook work only with an exact failing assertion, exact file path, and exact runtime contradiction.",
+    "hard_constraints": [
+      "Accepted contracts remain frozen.",
+      "Only controller may emit final ABORT.",
+      "Missing evidence fails soft to HOLD or REVIEW, never ABORT.",
+      "Do not enable controller flags globally unless explicitly requested.",
+      "Do not reopen closed lanes without the required exact blocker packet."
+    ],
+    "business_invariants": [
+      "Memphis-only 90 day PoC scope remains frozen.",
+      "Single-step booking remains the only in-scope write contract.",
+      "B1 and B2+B3 stay accepted.",
+      "B5 stays green on fresh workspace verification.",
+      "Controller runtime-hook capability is additive and default-off.",
+      "Current B4 lane remains closed."
+    ]
+  },
+  "compaction": {
+    "strategy_name": "Strategy B - Codex-Style Checkpoint",
+    "compaction_sequence": 2,
+    "halo_summary": "Instinct8 Integration Lane is complete. Controller runtime-hook capability exists behind flags, runtime validation is green, and main execution continues in default-off mode.",
+    "recent_turn_ids": [],
+    "drift_status": "stable"
+  },
+  "validated_artifacts": [
+    "reports/2026-03-14-1018-controller-checkpoint.json",
+    "dispatch-board.md",
+    "artifact-ledger.md",
+    "decisions.md",
+    "backend/app/config.py",
+    "backend/app/controller/runtime.py",
+    "backend/app/orchestrator/graph.py",
+    "tests/controller/test_controller_runtime.py",
+    "contracts/controller-checkpoint-schema.json"
+  ],
+  "active_failure_signal": {
+    "kind": "none",
+    "severity": "none",
+    "source": "controller",
+    "details": null
+  },
+  "controller_last_decision": {
+    "action": "continue",
+    "reason": "runtime_hook_lane_complete_default_off_preserved",
+    "source": "controller"
+  },
+  "queue": {
+    "wave_name": "Decision Tightening",
+    "status": "queued",
+    "run_policy": "auto",
+    "eligible": true,
+    "requires_explicit_request": false
+  },
+  "terminal_state": null
+}
