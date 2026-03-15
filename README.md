@@ -42,10 +42,10 @@ Core boundary:
 | `prd.md` | product scope and acceptance boundary |
 | `architecture-overview.md` | PoC architecture shape |
 | `security-model.md` | permission and data-protection model |
-| `docs/api/` | API documentation (async jobs, etc.) |
+| `docs/api/` | API documentation (async jobs, bounded autonomy, etc.) |
 | `docs/plans/` | design and planning documents |
 | `contracts/` | response, tool, permission, and checkpoint contracts |
-| `backend/` | FastAPI app, orchestrator, controller, tool registry, write gateway |
+| `backend/` | FastAPI app, orchestrator, controller, tool registry, write gateway, bounded autonomy |
 | `frontend/` | Vite + React prototype for structured operational responses |
 | `db/` | schema and view definitions |
 | `evals/` | evaluation harness code |
@@ -112,6 +112,7 @@ The implementation currently centers on:
 - controller checkpoint and precedence behavior
 - permission-aware contract validation
 - booking confirmation flow scaffolding
+- **bounded autonomy** (phase 1: poll-driven read-only async jobs, see `docs/api/async-jobs.md`)
 
 ## Notes
 
