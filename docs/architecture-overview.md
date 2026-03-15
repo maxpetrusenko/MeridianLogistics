@@ -83,11 +83,22 @@ Proposed architecture choices:
 Confirmed source facts:
 - Product cannot be plain chat only.
 - Structured response components are required.
+- Some operations (analytics refreshes, bulk processing) take longer than acceptable request timeout.
 
 Proposed architecture choices:
 - Support a response envelope that can render tables, metric cards, timelines, action buttons, and confirmation cards.
 - Keep business logic independent from final frontend schema details until the contract artifact is written.
 - Require every write-capable response to use an explicit confirmation card or equivalent gated interaction.
+- Async jobs API for long-running operations with secure poll-token-based status checking.
+
+### Async Jobs Layer
+
+Long-running operations spawn background jobs:
+- Chat response includes `job_id` and opaque `job_poll_token`
+- Frontend polls `/jobs/{job_id}?job_poll_token={token}` until completion
+- Job states: `queued` -> `running` -> `succeeded`/`failed`/`cancelled`/`expired`
+- Completion promotion only succeeds if session state matches job creation context
+- See `docs/api/async-jobs.md` for complete API documentation
 
 ## Observability and evaluation hooks
 

@@ -76,8 +76,10 @@ Confirmed source facts:
 
 Proposed checks:
 - Run deterministic replay on the critical scenarios before any release candidate.
+- Treat `db/seeds/replay_bundle.json` as the authoritative selective replay artifact for release gating.
 - Score each replay for correctness, scope enforcement, latency band, and response-structure validity.
 - Require explicit pass/fail checks for confirmation-before-write behavior.
+- Require the replay bundle to prove four end-to-end slices before release: read flow, async trace linkage, stale-state handling, and write replay evidence.
 - Require denied-result checks for unsupported writes, protected fields, and cross-office access.
 - Record failure class on every failing replay so security, orchestration, and contract owners can route fixes.
 
@@ -102,6 +104,7 @@ Confirmed source facts:
 Proposed checks:
 - No known cross-office leakage in replay or UAT.
 - No protected-field exposure in replay or UAT.
+- Replay bundle selective gate passes for read, stale-state, async trace, and write replay slices end to end.
 - Read-path replay meets agreed correctness threshold and hits 90%+ valid-query target.
 - Standard read scenarios meet the sub-500 ms latency target at the agreed sample size.
 - Approved booking flow cannot execute without explicit confirmation.

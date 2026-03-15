@@ -30,7 +30,11 @@
 - controller stage-packet hardening is complete
 - controller checkpoint truth now carries queue snapshot and terminal state
 - Controlled Flag-On Validation is complete under Main approval authority
-- no queued wave remains in current repo state
+- review-lane contract closure is merged into controller truth
+- async job lifecycle expansion is complete with 6-state lifecycle, durable persistence, and reopen-safe visibility
+- chat, session, and async route seam is now present in current repo state
+- next delivery waves are front and backend productization only
+- Main-approved Neon and B2 storage foundation work may land as a bounded support slice for upcoming backend and read-path waves without reordering the queued productization sequence
 
 ## Ownership Rule
 
@@ -83,19 +87,28 @@ protected_carry_forward:
 
 ## Review Now
 
-No active auto-runnable wave.
+Active wave:
+- `observability and replay gate closure`
 
 Current controller state:
-- latest runnable wave completed
-- no artifact-backed blocker remains in current repo state
-- latest checkpoint, report, and dispatch truth are aligned
-- `Controlled Flag-On Validation` was self-approved by Main, executed, and closed green
-- terminal state: `DONE`
+- latest controller hardening wave completed
+- chat, session, and async job lifecycle are present in current repo state
+- frontend shell and context binding wave is complete in current repo state
+- backend session and response API hardening wave is complete in current repo state
+- real read execution path is complete in current repo state
+- real write execution path is complete in current repo state
+- async job lifecycle expansion complete: 6-state lifecycle, durable persistence, poll token security, session promotion, reopen-safe visibility
+- review-lane contract enforced across prompts, report rules, and regression tests
+- runtime behavior is real, so observability and replay gates are now eligible
+- controller truth is re-opened for the remaining front and backend delivery sequence
+- terminal state: `null`
 - no queued wave currently requires user approval
 
 ## Queued Next
 
-No queued wave remains in current repo state.
+| Order | Wave | Owner | Run Policy | Eligible | Approval Authority | Objective | In Scope | Success Check | Why Next |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | observability and replay gate closure | QA and eval lead | `auto` | `true` | `main` | Add replay-grade observability, release-gate assertions, and stale-state/idempotency coverage. | `eval-plan.md`, `contracts/eval-test-schema.yaml`, `evals/runner.py`, backend audit seams | replay fixtures and release gating cover read, stale-state, write replay, and async traces end to end | runtime behavior is now real, so observability and replay gates can close |
 
 ## Blocked Lanes
 
@@ -164,6 +177,22 @@ Reason: implementation lanes are unlocked, but accepted contracts and accepted b
 - Controller policy now enforces full next-stage packet metadata, control-truth alignment checks, and `ABORTED` as a hard-invariant-only terminal state.
 - Stored controller checkpoint reports now carry queue snapshot and terminal state so report truth matches the hardened checkpoint contract.
 - Controlled flag-on validation was executed under Main approval authority and closed without requiring user approval.
+- Canonical action metadata now spans the response contract, tool contract, write gateway, frontend fixtures, and regression checks, with write execution requiring an idempotency key alongside the confirmation token.
+- Chat session contracts, product API routes, minimal session memory, stale-state response behavior, and minimal async job lifecycle now exist in current repo state.
+- Frontend shell and context binding now use the live backend chat and job APIs, show session or binding badges, handle stale state, and keep writes confirmation-only.
+- Backend session and response API hardening now fails closed on unknown sessions, preserves bound resource carry-forward, and materializes async job results to terminal success payloads for the live frontend shell.
+- Real read execution now routes `/chat` through allowlisted, DB-backed read tools for metrics, rankings, and shipment exceptions, with prompt-bounded contract filters instead of prompt-echo stubs.
+- Read-path repair is now re-approved in current repo state: `metric` and `ranking_metric` are honored, date range and result limits are contract-bounded, and fresh read-path regressions are green.
+- Controller sync truth now marks `real write execution path` as the active non-terminal auto wave across dispatch, ledger, checkpoint, and report surfaces.
+- Real write execution now persists confirmed booking outcomes, replays identical idempotent submissions, and rejects stale or conflicting submissions deterministically.
+- Write-path concurrency repair is closed: same-token concurrent submissions with different idempotency keys no longer double-submit, and fresh write-path plus contract gates are green.
+- Controller advanced the queue after write-path closeout, so `async job lifecycle expansion` is now the active non-terminal auto wave across controller surfaces.
+- Review-lane contract closure is merged into controller truth without closing the active async wave.
+- Review-lane contract is enforced across prompts, report rules, and regression tests.
+- Bounded review packet set is approved and review agent status is literal `APPROVE`.
+- Fresh controller verification for review-lane contract closure is green: 33 tests.
+- Async job lifecycle expansion is complete: `docs/api/async-jobs.md` documents 6-state lifecycle (pending, running, succeeded, failed, cancelled, expired), `backend/app/jobs/store.py` implements durable persistence with poll token security, `backend/app/api/routes/jobs.py` exposes lifecycle API, and 70 lifecycle tests verify stable state, result linkage, and reopen-safe visibility.
+- Controller advanced the queue after async job lifecycle closeout, so `observability and replay gate closure` is now the active non-terminal auto wave across controller surfaces.
 
 ## Acceptance Rule
 
