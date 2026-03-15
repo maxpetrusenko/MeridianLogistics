@@ -34,8 +34,8 @@ Main may proceed without asking when work is internal hardening, docs or checkpo
 Main must stop only on:
 
 - `DONE`
-- `WAITING_APPROVAL`
 - `BLOCKED`
+- `WAITING_USER_APPROVAL`
 - `ABORTED`
 
 ### Repair approval policy
@@ -72,7 +72,7 @@ Local code, repo truth, and tests should stay local-first.
 A wave is complete only when the intended change exists, required checks passed, and no unsuperseded exact blocker remains. After closeout the controller must do exactly one:
 
 1. activate the next eligible `auto` wave
-2. return `WAITING_APPROVAL` for a queued `explicit_request` wave
+2. return `WAITING_USER_APPROVAL` for a queued `explicit_request` wave
 3. return `DONE` when no runnable wave remains
 4. return `BLOCKED` only with exact blocker evidence
 
@@ -84,7 +84,7 @@ A closed wave may reopen only when a fresh exact blocker packet appears and the 
 
 Add pure helpers and small enums or dataclasses in `backend/app/controller/policy.py`:
 
-- `Action = CONTINUE | REPAIR | REVIEW | RESEARCH | WAITING_APPROVAL | BLOCKED | DONE`
+- `Action = CONTINUE | REPAIR | REVIEW | RESEARCH | WAITING_USER_APPROVAL | BLOCKED | DONE | ABORTED`
 - `MissingInfoAction = INFER | RESEARCH | REQUEST_INPUT | BLOCK`
 - `QueueDecision`
 - `is_exact_blocker_packet(...)`
@@ -126,7 +126,7 @@ Add focused unit tests for each policy group. Add minimal integration tests prov
 - repair is not opened without exact blocker evidence
 - review is opened only on selective gate conditions
 - Main continues automatically across eligible `auto` waves
-- `WAITING_APPROVAL` occurs only for queued `explicit_request` waves
+- `WAITING_USER_APPROVAL` occurs only for queued `explicit_request` waves
 - closed waves do not reopen on stale or vague evidence
 
 ## Risks and Guardrails

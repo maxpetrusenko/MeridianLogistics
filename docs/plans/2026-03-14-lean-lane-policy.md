@@ -49,7 +49,7 @@ Expected: PASS.
 
 Add tests proving:
 - Main continues automatically across eligible `auto` waves
-- `WAITING_APPROVAL` appears only for queued `explicit_request` waves
+- `WAITING_USER_APPROVAL` appears only for queued `explicit_request` waves
 - repair does not open without exact blocker evidence
 - review opens only for selective-gate conditions
 
@@ -87,7 +87,7 @@ Record:
 
 **Step 2: Verify docs reflect the same rules as code**
 
-Run: `rg -n "approval policy|exact blocker|WAITING_APPROVAL|explicit_request|reopen|research" decisions.md runbook.md dispatch-board.md reports/README.md`
+Run: `rg -n "approval policy|exact blocker|WAITING_USER_APPROVAL|explicit_request|reopen|research" decisions.md runbook.md dispatch-board.md reports/README.md`
 Expected: output shows all six policy groups and the lean-lane rules.
 
 ### Task 4: Run targeted verification
