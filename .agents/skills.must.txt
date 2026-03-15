@@ -1,7 +1,6 @@
-# @domains: contracts, security, eval, workflow-discipline
-# Project-local must-have skills for this repo.
-brainstorming
-writing-plans
+# @domains: controller-orchestration, repair-loop, verification, workflow-discipline
+# Project-local must-have skills for the current execution phase.
 verification-before-completion
-api-security-best-practices
-auth-implementation-patterns
+dispatching-parallel-agents
+subagent-driven-development
+requesting-code-review

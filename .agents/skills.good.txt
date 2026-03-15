@@ -1,7 +1,6 @@
-# @domains: contracts, security-review, eval-review
+# @domains: controller-hardening, selective-review, plan-maintenance
 # Helpful but not mandatory for the current phase.
-security-requirement-extraction
-threat-mitigation-mapping
-requesting-code-review
-dispatching-parallel-agents
+brainstorming
+writing-plans
+receiving-code-review
 architecture-decision-records

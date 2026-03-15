@@ -47,6 +47,24 @@
       "source": "local",
       "rev": "",
       "allowScripts": false
+    },
+    {
+      "name": "dispatching-parallel-agents",
+      "source": "local",
+      "rev": "",
+      "allowScripts": false
+    },
+    {
+      "name": "subagent-driven-development",
+      "source": "local",
+      "rev": "",
+      "allowScripts": false
+    },
+    {
+      "name": "receiving-code-review",
+      "source": "local",
+      "rev": "",
+      "allowScripts": false
     }
   ]
 }
