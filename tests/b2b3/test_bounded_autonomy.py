@@ -335,15 +335,15 @@ class BoundedAutonomyTests(unittest.TestCase):
         )
         self.assertEqual(invalid_poll.status_code, 404)
 
-        # Verify job is still accessible with valid token (no steps advanced)
+        # Verify job is still accessible with valid token (job was started, not pending)
         valid_poll = client.get(
             f"/jobs/{job_id}",
             params=self._job_query(job_poll_token=valid_token),
         )
         self.assertEqual(valid_poll.status_code, 200)
         poll_data = valid_poll.json()
-        # Job should still be in initial state
-        self.assertEqual(poll_data["status"], "pending")
+        # Job should be running (started by chat route)
+        self.assertEqual(poll_data["status"], "running")
 
 
 def load_config():
