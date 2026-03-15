@@ -210,3 +210,75 @@ See `tests/b2b3/test_async_job_lifecycle.py` for comprehensive coverage of:
 - Poll token backfill for legacy rows
 - Completion promotion conditional logic
 - Job persistence across app restarts
+
+## Bounded Autonomy (Phase 1)
+
+### Overview
+
+When `MERIDIAN_RUNNING_AUTONOMY_ENABLED=true` (together with controller checkpoint flags), async read jobs execute autonomously in bounded steps. The frontend's polling behavior drives execution forward without changing the public API contract.
+
+### Execution Model
+
+**Poll-Driven Bounded Steps:**
+- Each `GET /jobs/{job_id}` poll advances exactly one autonomy step
+- No background workers or queues required
+- One poll = one step, max steps configured via `MERIDIAN_RUNNING_AUTONOMY_MAX_STEPS`
+- Read-only phase 1: no autonomous writes, confirmation-gated writes unchanged
+
+### Feature Flags
+
+| Flag | Default | Purpose |
+|------|---------|---------|
+| `MERIDIAN_RUNNING_AUTONOMY_ENABLED` | `false` | Master switch for running-app autonomy |
+| `MERIDIAN_CONTROLLER_CHECKPOINTS_ENABLED` | `false` | Required for checkpoint persistence |
+| `MERIDIAN_CONTROLLER_PRECEDENCE_ENABLED` | `false` | Required for checkpoint truth |
+| `MERIDIAN_RUNNING_AUTONOMY_MAX_STEPS` | `3` | Maximum steps per autonomy run |
+| `MERIDIAN_RUNNING_AUTONOMY_POLL_STEP_TIMEOUT_SECONDS` | `5` | *(Phase 2)* Per-step wall-clock timeout enforcement |
+
+### Allowed Steps (Phase 1)
+
+1. `seed_context` - Initialize controller checkpoint
+2. `execute_allowlisted_read` - Run read-only analytics
+3. `build_response` - Assemble response envelope
+4. `complete_job` - Mark job as succeeded
+5. `fail_job` - Fail-soft termination on budget exhaustion
+
+### Checkpoint Architecture
+
+- **Authoritative truth**: Controller checkpoint stored under `job_id`
+- **Derivative cache**: Job metadata (`autonomy_metadata` JSON column)
+- Checkpoint truth wins on resume if job metadata is stale
+- Checkpoint path: `.controller-checkpoints/{job_id}.json`
+
+### Audit Fields
+
+When autonomy runs, response audit section includes:
+```json
+{
+  "audit": {
+    "actor_role": "broker",
+    "office_scope": "memphis",
+    "tool_path": ["shipment_exception_lookup"],
+    "response_generated_at": "2026-03-15T20:00:00Z",
+    "autonomy_mode": "poll_driven",
+    "autonomy_task_kind": "async_read_refresh",
+    "autonomy_run_id": "job_20260315_abc123",
+    "checkpoint_id": "job_20260315_abc123:seed"
+  }
+}
+```
+
+### Termination Conditions
+
+Autonomy jobs terminate on:
+1. **Successful completion** - All steps executed, result materialized
+2. **Step budget exhausted** - `MERIDIAN_RUNNING_AUTONOMY_MAX_STEPS` reached
+3. **Checkpoint terminal state** - Controller marked run as blocked/done
+4. **Poll validation failure** - Invalid token or session mismatch
+
+### Non-Goals (Phase 1)
+
+- Autonomous booking writes (require confirmation)
+- Background worker processes (poll-driven only)
+- Multi-job fan-out or nested autonomy
+- Frontend contract changes (audit fields are additive)

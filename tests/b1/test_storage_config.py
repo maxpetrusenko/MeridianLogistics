@@ -121,7 +121,7 @@ class StorageConfigTests(unittest.TestCase):
         app = create_app()
 
         self.assertTrue(app.state.config.state_database_url.startswith("sqlite:///"))
-        self.assertEqual(sqlite_connect.call_count, 2)
+        self.assertEqual(sqlite_connect.call_count, 3)
         connect_postgres.assert_not_called()
 
     def test_postgres_state_connection_enables_autocommit(self) -> None:

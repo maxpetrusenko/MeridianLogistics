@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from backend.app.api.identity import TrustedIdentity, identity_from_request_state
 from backend.app.api.schemas.chat import (
+    ActionConfirmRequest,
     ActiveResourceEnvelope,
     ChatResponseEnvelope,
 )
@@ -111,31 +112,26 @@ def _base_payload(
 
 
 @router.post("/actions/confirm", response_model=ChatResponseEnvelope)
-def post_confirm_action(request_payload: dict, request: Request) -> ChatResponseEnvelope:
+def post_confirm_action(request_body: ActionConfirmRequest, request: Request) -> ChatResponseEnvelope:
+    """Confirm a booking action with session-bound token verification.
+
+    P1 fix: Verifies the confirmation token was actually issued to this session
+    before executing the write gateway. Prevents direct-submit bypass.
+
+    P2 fix: Uses typed Pydantic model to prevent 500 errors from malformed payloads.
+    """
     session_store = request.app.state.session_store
+    grant_store = request.app.state.confirmation_grant_store
     identity = _trusted_action_identity(request)
 
-    action_name = request_payload.get("action_name")
-    confirmation_token = request_payload.get("confirmation_token")
-    idempotency_key = request_payload.get("idempotency_key")
-    session_id = request_payload.get("session_id")
-    session_access_token = request_payload.get("session_access_token")
+    # Extract validated fields from typed request
+    action_name = request_body.action_name
+    confirmation_token = request_body.confirmation_token
+    idempotency_key = request_body.idempotency_key
+    session_id = request_body.session_id
+    session_access_token = request_body.session_access_token
 
-    if not action_name or action_name != "booking_create_confirmed":
-        raise HTTPException(status_code=400, detail="unsupported action")
-
-    if not confirmation_token:
-        raise HTTPException(status_code=400, detail="confirmation_token is required")
-
-    if not idempotency_key:
-        raise HTTPException(status_code=400, detail="idempotency_key is required")
-
-    if not session_id:
-        raise HTTPException(status_code=400, detail="session_id is required")
-
-    if not session_access_token:
-        raise HTTPException(status_code=400, detail="session_access_token is required")
-
+    # Validate session
     session = session_store.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="unknown session")
@@ -145,6 +141,19 @@ def post_confirm_action(request_payload: dict, request: Request) -> ChatResponse
 
     if session.broker_id != identity.broker_id or session.office_id != identity.office_id:
         raise HTTPException(status_code=403, detail="session identity mismatch")
+
+    # P1: Verify session-bound confirmation grant
+    # This proves the token was actually issued to this session
+    grant = grant_store.consume_grant(
+        confirmation_token=confirmation_token,
+        session_id=session_id,
+    )
+    if grant is None:
+        # Token doesn't exist, already consumed, expired, or not for this session
+        raise HTTPException(
+            status_code=403,
+            detail="confirmation token not valid for this session or already used",
+        )
 
     permission_context: dict = {
         "claims": {

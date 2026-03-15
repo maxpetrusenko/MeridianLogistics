@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DISPATCH_BOARD = ROOT / "dispatch-board.md"
-ARTIFACT_LEDGER = ROOT / "artifact-ledger.md"
+DISPATCH_BOARD = ROOT / "docs" / "dispatch-board.md"
+ARTIFACT_LEDGER = ROOT / "docs" / "artifact-ledger.md"
 CONTROLLER_REPORT = (
     ROOT / "reports" / "2026-03-15-1454-controller-review-lane-contract-closeout-report.md"
 )

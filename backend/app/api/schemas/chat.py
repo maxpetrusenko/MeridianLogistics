@@ -113,3 +113,17 @@ class AsyncJobListEnvelope(BaseModel):
     result: ChatResponseEnvelope | None = None
     error_message: str | None = None
     failed_at: str | None = None
+
+
+class ActionConfirmRequest(BaseModel):
+    """Typed request model for /actions/confirm.
+
+    Enforces strict string validation and prevents malformed payloads.
+    """
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    action_name: str = Field(pattern=r"^booking_create_confirmed$")
+    confirmation_token: str = Field(min_length=1, max_length=256)
+    idempotency_key: str = Field(min_length=1, max_length=256)
+    session_id: str = Field(pattern=r"^chat_s_[A-Za-z0-9_]+$")
+    session_access_token: str = Field(min_length=16, max_length=128)

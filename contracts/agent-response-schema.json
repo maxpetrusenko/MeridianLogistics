@@ -560,6 +560,38 @@
         "response_generated_at": {
           "type": "string",
           "format": "date-time"
+        },
+        "autonomy_mode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "poll_driven"
+          ]
+        },
+        "autonomy_task_kind": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "async_read_refresh"
+          ]
+        },
+        "autonomy_run_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "checkpoint_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
         }
       }
     }

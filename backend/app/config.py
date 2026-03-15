@@ -92,5 +92,8 @@ def load_config() -> AppConfig:
             default=False,
         ),
         running_autonomy_max_steps=int(os.getenv("MERIDIAN_RUNNING_AUTONOMY_MAX_STEPS", "3")),
+        # PHASE 2: Per-step wall-clock timeout enforcement
+        # Phase 1 completes immediately; timeout will be enforced when
+        # actual step execution is implemented (resume_one_step does work)
         running_autonomy_poll_step_timeout_seconds=int(os.getenv("MERIDIAN_RUNNING_AUTONOMY_POLL_STEP_TIMEOUT_SECONDS", "5")),
     )
