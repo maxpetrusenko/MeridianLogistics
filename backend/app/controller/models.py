@@ -5,7 +5,16 @@ from datetime import datetime, timezone
 from typing import Literal
 
 
-ControllerAction = Literal["continue", "review", "repair", "abort"]
+ControllerAction = Literal[
+    "continue",
+    "review",
+    "repair",
+    "abort",
+    "done",
+    "blocked",
+    "waiting_user_approval",
+    "aborted",
+]
 DecisionSource = Literal["controller", "review", "triage", "validator"]
 DriftStatus = Literal["stable", "watch", "drift_detected"]
 FailureSeverity = Literal["none", "recoverable", "unsafe"]

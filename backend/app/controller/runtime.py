@@ -343,8 +343,31 @@ class ControllerRuntime:
 
         checkpoint = loaded.checkpoint
 
-        # Controller truth first: re-evaluate queue state on resume
-        # to get fresh decision, not stale controller_last_decision
+        # Precedence 1: If checkpoint has terminal_state, honor it directly
+        # A blocked/done/waiting checkpoint must stay terminal on resume
+        if checkpoint.terminal_state is not None:
+            # Map terminal state literal to action
+            terminal_to_action = {
+                "DONE": "done",
+                "BLOCKED": "blocked",
+                "WAITING_USER_APPROVAL": "waiting_user_approval",
+                "ABORTED": "aborted",
+            }
+            return ControllerResumeResult(
+                protected_core=checkpoint.protected_core,
+                decision=ControllerDecision(
+                    action=terminal_to_action.get(
+                        checkpoint.terminal_state,
+                        checkpoint.terminal_state,
+                    ),
+                    reason=f"resume_from_preserved_terminal_state_{checkpoint.terminal_state}",
+                    source="controller",
+                ),
+                checkpoint=checkpoint,
+            )
+
+        # Precedence 2: Re-evaluate queue state on resume for fresh decision
+        # Only when checkpoint is non-terminal (terminal_state is None)
         if checkpoint.queue is not None:
             # Build queue items from checkpoint queue snapshot
             queue_items = [

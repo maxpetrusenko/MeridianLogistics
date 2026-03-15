@@ -51,6 +51,7 @@ class MainAutonomousResumeTests(unittest.TestCase):
     - stale thread packet does not override controller truth when checkpoint/queue truth points to a different active wave
     - Main returns terminal state only when queue finalization yields literal `DONE`, `WAITING_USER_APPROVAL`, `BLOCKED`, or `ABORTED`
     - Main derives the next runnable packet from checkpoint/queue truth when no fresh manual packet is supplied
+    - resume from BLOCKED, WAITING_USER_APPROVAL, or DONE checkpoints honors preserved terminal state
     """
 
     def test_status_only_resume_with_eligible_auto_wave_continues(self) -> None:
@@ -248,8 +249,13 @@ class MainAutonomousResumeTests(unittest.TestCase):
     def test_main_derives_next_wave_packet_from_checkpoint_truth(self) -> None:
         """
         When no fresh manual packet is supplied, Main must derive the next runnable
-        wave packet from checkpoint/queue truth. The derived packet must include
-        all required fields for autonomous execution.
+        wave selection from checkpoint/queue truth.
+
+        Note: Checkpoint queue snapshot stores wave selection metadata (wave_name,
+        status, run_policy, eligible, requires_explicit_request, approval_authority).
+        Full execution packet fields (owner, objective, success_check, why_next) are
+        NOT persisted in checkpoint - those come from dispatch-board or are derived
+        at wave instantiation time.
         """
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -291,7 +297,7 @@ class MainAutonomousResumeTests(unittest.TestCase):
                 config=config,
             )
 
-            # CRITICAL: Must derive next wave packet from checkpoint truth
+            # CRITICAL: Must derive next wave selection from checkpoint truth
             self.assertIsNotNone(resumed.checkpoint.queue,
                 "Must have queue snapshot in checkpoint")
             self.assertEqual(resumed.checkpoint.queue.wave_name, "Derived Auto Wave",
@@ -300,10 +306,156 @@ class MainAutonomousResumeTests(unittest.TestCase):
                 "Derived wave must preserve run_policy")
             self.assertTrue(resumed.checkpoint.queue.eligible,
                 "Derived wave must preserve eligible status")
+            # Note: owner, objective, success_check, why_next are NOT in checkpoint
 
             # Decision must be continue with derived wave
             self.assertEqual(resumed.decision.action, "continue",
                 "Must continue with derived wave")
+
+    def test_resume_from_blocked_checkpoint_honors_terminal_state(self) -> None:
+        """
+        Resume from a BLOCKED checkpoint must preserve the blocked state,
+        not re-derive a continue or done action from the queue snapshot.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = make_config(
+                root,
+                checkpoints_enabled=True,
+                precedence_enabled=True,
+            )
+            protected_core = make_protected_core("blocked checkpoint goal")
+
+            # Create checkpoint with BLOCKED terminal state
+            graph.controller_stage_transition(
+                session_id="sess-resume-blocked",
+                stage_name="review",
+                protected_core=protected_core,
+                legacy_action="blocked",
+                config=config,
+            )
+
+            # Manually write a blocked checkpoint (queue with blocker)
+            checkpoint_path = config.controller_checkpoint_dir / "sess-resume-blocked.json"
+            checkpoint_data = json.loads(checkpoint_path.read_text())
+            checkpoint_data["terminal_state"] = "BLOCKED"
+            checkpoint_data["queue"] = {
+                "wave_name": "Auto Wave",
+                "status": "blocked",
+                "run_policy": "auto",
+                "eligible": True,
+                "requires_explicit_request": False,
+                "approval_authority": "main",
+            }
+            checkpoint_path.write_text(json.dumps(checkpoint_data, indent=2))
+
+            # Resume from blocked checkpoint
+            resumed = graph.controller_resume(
+                session_id="sess-resume-blocked",
+                fallback_protected_core=protected_core,
+                config=config,
+            )
+
+            # CRITICAL: Blocked checkpoint must stay blocked
+            self.assertEqual(resumed.checkpoint.terminal_state, "BLOCKED",
+                "Terminal state must be preserved from checkpoint")
+            self.assertEqual(resumed.decision.action, "blocked",
+                "Resume from blocked checkpoint must return blocked action")
+            self.assertIn("terminal_state", resumed.decision.reason.lower(),
+                "Reason should indicate terminal state was preserved")
+
+    def test_resume_from_waiting_user_approval_checkpoint_honors_terminal_state(self) -> None:
+        """
+        Resume from a WAITING_USER_APPROVAL checkpoint must preserve the terminal state,
+        not re-derive a continue or done action from the queue snapshot.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = make_config(
+                root,
+                checkpoints_enabled=True,
+                precedence_enabled=True,
+            )
+            protected_core = make_protected_core("waiting approval goal")
+
+            # Create checkpoint with WAITING_USER_APPROVAL terminal state
+            graph.controller_stage_transition(
+                session_id="sess-resume-waiting",
+                stage_name="review",
+                protected_core=protected_core,
+                legacy_action="waiting_user_approval",
+                config=config,
+            )
+
+            # Manually write a waiting approval checkpoint
+            checkpoint_path = config.controller_checkpoint_dir / "sess-resume-waiting.json"
+            checkpoint_data = json.loads(checkpoint_path.read_text())
+            checkpoint_data["terminal_state"] = "WAITING_USER_APPROVAL"
+            checkpoint_data["queue"] = {
+                "wave_name": "User Approval Wave",
+                "status": "queued",
+                "run_policy": "explicit_request",
+                "eligible": False,
+                "requires_explicit_request": True,
+                "approval_authority": "user",
+            }
+            checkpoint_path.write_text(json.dumps(checkpoint_data, indent=2))
+
+            # Resume from waiting checkpoint
+            resumed = graph.controller_resume(
+                session_id="sess-resume-waiting",
+                fallback_protected_core=protected_core,
+                config=config,
+            )
+
+            # CRITICAL: Waiting approval checkpoint must stay waiting
+            self.assertEqual(resumed.checkpoint.terminal_state, "WAITING_USER_APPROVAL",
+                "Terminal state must be preserved from checkpoint")
+            self.assertEqual(resumed.decision.action, "waiting_user_approval",
+                "Resume from waiting checkpoint must return waiting_user_approval action")
+
+    def test_resume_from_done_checkpoint_honors_terminal_state(self) -> None:
+        """
+        Resume from a DONE checkpoint must preserve the done state,
+        not re-derive a continue action from the queue snapshot.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = make_config(
+                root,
+                checkpoints_enabled=True,
+                precedence_enabled=True,
+            )
+            protected_core = make_protected_core("done checkpoint goal")
+
+            # Create checkpoint with DONE terminal state
+            graph.controller_stage_transition(
+                session_id="sess-resume-done",
+                stage_name="review",
+                protected_core=protected_core,
+                legacy_action="done",
+                config=config,
+            )
+
+            # Manually write a done checkpoint
+            checkpoint_path = config.controller_checkpoint_dir / "sess-resume-done.json"
+            checkpoint_data = json.loads(checkpoint_path.read_text())
+            checkpoint_data["terminal_state"] = "DONE"
+            checkpoint_data["queue"] = None  # No queue when done
+            checkpoint_path.write_text(json.dumps(checkpoint_data, indent=2))
+
+            # Resume from done checkpoint
+            resumed = graph.controller_resume(
+                session_id="sess-resume-done",
+                fallback_protected_core=protected_core,
+                config=config,
+            )
+
+            # CRITICAL: Done checkpoint must stay done
+            self.assertEqual(resumed.checkpoint.terminal_state, "DONE",
+                "Terminal state must be preserved from checkpoint")
+            self.assertEqual(resumed.decision.action, "done",
+                "Resume from done checkpoint must return done action")
 
 
 if __name__ == "__main__":

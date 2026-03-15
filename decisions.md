@@ -110,7 +110,7 @@ All environments:
 - Status-only reports are advisory updates, not permission checkpoints.
 - **Controller checkpoint truth is authoritative over stale thread summaries**: repo truth wins on resume.
 - **Every resume must re-evaluate queue state from checkpoint**: the runtime loads the latest checkpoint queue snapshot and derives a fresh decision, not the stale `controller_last_decision`.
-- **Derived next-wave packet may be emitted from checkpoint truth**: when no fresh manual packet exists, Main derives the runnable wave from checkpoint queue truth automatically.
+- **Checkpoint queue snapshot stores wave selection metadata only**: wave_name, status, run_policy, eligible, requires_explicit_request, approval_authority. Full execution packet fields (owner, objective, success_check, why_next) come from dispatch-board or are derived at wave instantiation.
 
 ## Locked Approval Policy By Layer
 

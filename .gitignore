@@ -15,6 +15,9 @@
 agents/
 skills/
 
+# Exception: keep tracked project-local agent prompts under .agents/
+!.agents/agents/
+
 # OS noise
 .DS_Store
 
