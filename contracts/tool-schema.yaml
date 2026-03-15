@@ -175,6 +175,7 @@ tool_families:
         confirmation_contract:
           required_fields:
             - confirmation_token
+            - idempotency_key
             - actor_broker_id
             - office_id
             - quote_id
@@ -225,6 +226,7 @@ tool_families:
           user_supplied:
             required:
               - confirmation_token
+              - idempotency_key
             optional: []
           system_injected:
             required:
@@ -237,8 +239,10 @@ tool_families:
             - table
         safety_rules:
           - execution allowed only after confirmation token validation
+          - execution allowed only with a non-empty idempotency key
           - office scope must match trusted permission context
           - booking target must still be eligible at execution time
+          - duplicate booking attempts must resolve through the same idempotency identity
           - audit record must capture requester, confirmer, action, and outcome
 
 unsupported_requests:

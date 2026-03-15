@@ -56,6 +56,7 @@ bundle_schema:
   allowed_actor_roles:
     - broker
   allowed_intent_classes:
+    - read_pending
     - read_result
     - read_denied
     - write_confirmation_required
@@ -75,6 +76,58 @@ bundle_schema:
     - performance
     - audit
 
+replay_bundle:
+  default_fixture_artifact: db/seeds/replay_bundle.json
+  required_scenario_ids:
+    - read_aggregation_broker
+    - read_async_refresh_pending
+    - read_stale_binding_broker
+    - read_ranking_broker
+    - read_multi_table_broker
+    - booking_submit_after_confirmation
+    - booking_submit_idempotent_replay
+  required_coverage_slices:
+    - coverage_id: read_end_to_end
+      scenario_ids:
+        - read_aggregation_broker
+        - read_ranking_broker
+        - read_multi_table_broker
+      required_assertions:
+        - permission_context_applied
+      required_capture_fields:
+        - captured_response
+    - coverage_id: async_trace_end_to_end
+      scenario_ids:
+        - read_async_refresh_pending
+      required_assertions:
+        - session_metadata_present
+        - async_job_id_present
+        - trace_linked_async_completion
+      required_capture_fields:
+        - captured_response
+        - captured_job
+    - coverage_id: stale_state_end_to_end
+      scenario_ids:
+        - read_stale_binding_broker
+      required_assertions:
+        - stale_binding_emitted
+        - session_metadata_present
+      required_capture_fields:
+        - captured_response
+    - coverage_id: write_replay_end_to_end
+      scenario_ids:
+        - booking_submit_after_confirmation
+        - booking_submit_idempotent_replay
+      required_assertions:
+        - confirmation_token_validated
+        - resource_state_revalidated
+        - audit_record_present
+        - idempotent_replay_linked
+        - action_outcome_timestamp_present
+      required_capture_fields:
+        - captured_write_result
+        - captured_write_replay
+
 scenario_catalog:
   - scenario_id: read_aggregation_broker
     intent_class: read_result
@@ -89,6 +142,34 @@ scenario_catalog:
       - permission_context_applied
       - bounded_date_range
       - no_sensitive_fields
+      - latency_under_budget
+
+  - scenario_id: read_async_refresh_pending
+    intent_class: read_pending
+    actor_role: broker
+    prompt: Refresh Memphis shipment exceptions in the background.
+    expected_gate: allow
+    expected_tool_path: []
+    expected_response_components:
+      - message_block
+    assertions:
+      - session_metadata_present
+      - async_job_id_present
+      - trace_linked_async_completion
+      - no_write_executed
+
+  - scenario_id: read_stale_binding_broker
+    intent_class: read_result
+    actor_role: broker
+    prompt: Switch from shipment 88219 to shipment 99117.
+    expected_gate: allow
+    expected_tool_path:
+      - shipment_exception_lookup
+    expected_response_components:
+      - message_block
+    assertions:
+      - stale_binding_emitted
+      - session_metadata_present
       - latency_under_budget
 
   - scenario_id: read_ranking_broker
@@ -160,6 +241,22 @@ scenario_catalog:
       - resource_state_revalidated
       - audit_record_present
 
+  - scenario_id: booking_submit_idempotent_replay
+    intent_class: write_submitted
+    actor_role: broker
+    prompt: Confirm booking quote 88219 with carrier 4412 for Tuesday pickup again with the same confirmation.
+    expected_gate: allow
+    expected_tool_path:
+      - booking_create_confirmed
+    expected_response_components:
+      - message_block
+    assertions:
+      - confirmation_token_validated
+      - resource_state_revalidated
+      - audit_record_present
+      - idempotent_replay_linked
+      - action_outcome_timestamp_present
+
   - scenario_id: booking_deny_without_confirmation
     intent_class: write_denied
     actor_role: broker
@@ -185,5 +282,5 @@ scenario_catalog:
       - no_sensitive_fields
 
 review_follow_ups:
-  - Confirm the final replay sample size per scenario before implementation starts.
-  - Confirm the final Memphis broker fixture set for write confirmation and denial coverage.
+  - Keep replay bundle coverage aligned with the required end-to-end slices when scenarios change.
+  - Fail release gating if replay fixtures drift from audit, stale-state, async trace, or write replay evidence.

@@ -162,6 +162,17 @@ valid_read_response = {
     "response_id": "resp-1",
     "request_id": "req-1",
     "trace_id": "trace-1",
+    "session_id": "chat_s_123",
+    "session_access_token": "session_token_123456",
+    "conversation_scope": "shipment",
+    "context_binding_state": "bound",
+    "screen_sync_state": "not_applicable",
+    "active_resource": {
+        "resource_type": "shipment",
+        "resource_id": "S-100",
+        "resource_fingerprint": "shipment:S-100:v1",
+    },
+    "job_id": None,
     "intent_class": "read_result",
     "status": "success",
     "summary": "Found matching shipments.",
@@ -183,6 +194,12 @@ valid_read_response = {
             "action_id": "details-1",
             "label": "Open details",
             "action_type": "open_details",
+            "resource_type": "shipment",
+            "resource_id": "S-100",
+            "surface": "chat",
+            "requires_confirmation": False,
+            "enabled": True,
+            "disabled_reason": None,
         }
     ],
     "policy": {
@@ -200,6 +217,61 @@ valid_read_response = {
 }
 
 assert_valid("response valid read", response_validator, valid_read_response)
+
+valid_pending_response = {
+    **valid_read_response,
+    "response_id": "resp-pending",
+    "request_id": "req-pending",
+    "trace_id": "trace-pending",
+    "conversation_scope": "analytics",
+    "context_binding_state": "missing",
+    "screen_sync_state": "pending",
+    "active_resource": None,
+    "job_id": "job_20260314_pending_1",
+    "job_poll_token": "jobpoll_token_123456",
+    "intent_class": "read_pending",
+    "status": "pending",
+    "summary": "Analytics refresh started in the background.",
+    "components": [
+        {
+            "component_id": "msg-pending",
+            "component_type": "message_block",
+            "body": "Refresh in progress.",
+            "tone": "informational",
+        }
+    ],
+    "actions": [],
+    "audit": {
+        **valid_read_response["audit"],
+        "tool_path": [],
+    },
+}
+
+assert_valid("response valid pending read", response_validator, valid_pending_response)
+
+valid_stale_binding_response = {
+    **valid_read_response,
+    "response_id": "resp-stale",
+    "request_id": "req-stale",
+    "trace_id": "trace-stale",
+    "context_binding_state": "stale",
+    "summary": "Shipment context changed. Refresh before taking further action.",
+    "components": [
+        {
+            "component_id": "msg-stale",
+            "component_type": "message_block",
+            "body": "Shipment context changed. Refresh before taking further action.",
+            "tone": "warning",
+        }
+    ],
+    "actions": [],
+    "policy": {
+        **valid_read_response["policy"],
+        "denial_reason_class": "stale_state",
+    },
+}
+
+assert_valid("response valid stale binding", response_validator, valid_stale_binding_response)
 
 valid_confirmation_response = {
     **valid_read_response,
@@ -227,11 +299,40 @@ valid_confirmation_response = {
             "action_id": "confirm-1",
             "label": "Confirm booking",
             "action_type": "confirm_booking",
+            "resource_type": "shipment",
+            "resource_id": "L-1",
+            "surface": "chat",
+            "requires_confirmation": True,
+            "enabled": True,
+            "disabled_reason": None,
+            "server_endpoint": {
+                "method": "POST",
+                "path": "/shipments/L-1/book",
+            },
+            "permission_scope": {
+                "office_id": "memphis",
+                "role": "broker",
+                "broker_id": "broker-123",
+            },
+            "confirmation_token": "token-123",
+            "confirmation_expires_at": "2026-03-13T12:05:00Z",
+            "idempotency_key": "book-load-L-1-carrier-acme-pickup-2026-03-14-v1",
+            "ui_behavior": {
+                "success_mode": "sync_chat_and_screen",
+                "failure_mode": "stay_in_confirmation",
+                "post_success_refresh": ["shipment_detail", "dispatch_board"],
+            },
         },
         {
             "action_id": "cancel-1",
             "label": "Cancel",
             "action_type": "cancel_booking",
+            "resource_type": "shipment",
+            "resource_id": "L-1",
+            "surface": "chat",
+            "requires_confirmation": False,
+            "enabled": True,
+            "disabled_reason": None,
         },
     ],
     "policy": {
@@ -243,6 +344,68 @@ valid_confirmation_response = {
 }
 
 assert_valid("response valid confirmation", response_validator, valid_confirmation_response)
+
+valid_write_submitted_response = {
+    **valid_read_response,
+    "response_id": "resp-write-submitted",
+    "request_id": "req-write-submitted",
+    "trace_id": "trace-write-submitted",
+    "intent_class": "write_submitted",
+    "status": "submitted",
+    "summary": "Booking submitted successfully.",
+    "components": [
+        {
+            "component_id": "msg-write-submitted",
+            "component_type": "message_block",
+            "body": "Booking submitted successfully.",
+            "tone": "informational",
+        }
+    ],
+    "actions": [],
+    "policy": {
+        "permission_context_applied": True,
+        "sensitive_fields_redacted": True,
+        "write_confirmation_required": False,
+        "denial_reason_class": "none",
+    },
+    "audit": {
+        **valid_read_response["audit"],
+        "tool_path": ["booking_create_confirmed"],
+    },
+}
+
+assert_valid("response valid write submitted", response_validator, valid_write_submitted_response)
+
+valid_write_denied_response = {
+    **valid_read_response,
+    "response_id": "resp-write-denied",
+    "request_id": "req-write-denied",
+    "trace_id": "trace-write-denied",
+    "intent_class": "write_denied",
+    "status": "denied",
+    "summary": "Booking could not be completed because the quote changed.",
+    "components": [
+        {
+            "component_id": "msg-write-denied",
+            "component_type": "message_block",
+            "body": "Booking could not be completed because the quote changed.",
+            "tone": "warning",
+        }
+    ],
+    "actions": [],
+    "policy": {
+        "permission_context_applied": True,
+        "sensitive_fields_redacted": True,
+        "write_confirmation_required": False,
+        "denial_reason_class": "stale_state",
+    },
+    "audit": {
+        **valid_read_response["audit"],
+        "tool_path": ["booking_create_confirmed"],
+    },
+}
+
+assert_valid("response valid write denied", response_validator, valid_write_denied_response)
 
 assert_invalid(
     "response confirmation missing card",
@@ -269,7 +432,76 @@ assert_invalid(
                 "action_id": "confirm-1",
                 "label": "Confirm booking",
                 "action_type": "confirm_booking",
+                "resource_type": "shipment",
+                "resource_id": "L-1",
+                "surface": "chat",
+                "requires_confirmation": True,
+                "enabled": True,
+                "disabled_reason": None,
             }
+        ],
+    },
+)
+
+assert_invalid(
+    "response confirm action missing idempotency key",
+    response_validator,
+    {
+        **valid_confirmation_response,
+        "actions": [
+            {
+                **valid_confirmation_response["actions"][0],
+                "idempotency_key": "",
+            },
+            valid_confirmation_response["actions"][1],
+        ],
+    },
+)
+
+assert_invalid(
+    "response pending read requires job id",
+    response_validator,
+    {
+        **valid_pending_response,
+        "job_id": None,
+    },
+)
+
+assert_invalid(
+    "response pending read requires opaque poll token",
+    response_validator,
+    {
+        **valid_pending_response,
+        "job_poll_token": None,
+    },
+)
+
+assert_invalid(
+    "response active resource requires fingerprint",
+    response_validator,
+    {
+        **valid_read_response,
+        "active_resource": {
+            "resource_type": "shipment",
+            "resource_id": "S-100",
+        },
+    },
+)
+
+assert_invalid(
+    "response confirm action rejects non broker permission scope",
+    response_validator,
+    {
+        **valid_confirmation_response,
+        "actions": [
+            {
+                **valid_confirmation_response["actions"][0],
+                "permission_scope": {
+                    **valid_confirmation_response["actions"][0]["permission_scope"],
+                    "role": "office_manager",
+                },
+            },
+            valid_confirmation_response["actions"][1],
         ],
     },
 )
@@ -304,6 +536,12 @@ assert_invalid(
                 "action_id": "details-1",
                 "label": "Open details",
                 "action_type": "open_details",
+                "resource_type": "shipment",
+                "resource_id": "S-100",
+                "surface": "chat",
+                "requires_confirmation": False,
+                "enabled": True,
+                "disabled_reason": None,
             }
         ],
         "policy": {
@@ -422,6 +660,9 @@ if {
 write_tool = write_tools[0]
 if write_tool["result_shape"]["primary"] != "message_block":
     raise AssertionError("tool contract: confirmed booking execution must return execution result, not confirmation UI")
+
+if write_tool["parameters"]["user_supplied"]["required"] != ["confirmation_token", "idempotency_key"]:
+    raise AssertionError("tool contract: confirmed booking execution must require confirmation token and idempotency key")
 
 if set(scenario["actor_role"] for scenario in eval_contract["scenario_catalog"]) != {"broker"}:
     raise AssertionError("eval contract: broker must be the only actor role in Memphis PoC scenarios")

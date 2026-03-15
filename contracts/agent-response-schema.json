@@ -28,6 +28,48 @@
       "if": {
         "properties": {
           "intent_class": {
+            "const": "read_pending"
+          }
+        },
+        "required": [
+          "intent_class"
+        ]
+      },
+      "then": {
+        "required": [
+          "job_id",
+          "job_poll_token"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "pattern": "^job_[A-Za-z0-9_]+$"
+          },
+          "job_poll_token": {
+            "type": "string",
+            "minLength": 16
+          },
+          "status": {
+            "const": "pending"
+          },
+          "actions": {
+            "maxItems": 0
+          },
+          "audit": {
+            "type": "object",
+            "properties": {
+              "tool_path": {
+                "minItems": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_class": {
             "const": "read_result"
           }
         },
@@ -305,6 +347,7 @@
     "intent_class": {
       "type": "string",
       "enum": [
+        "read_pending",
         "read_result",
         "read_denied",
         "write_confirmation_required",
@@ -316,6 +359,7 @@
     "status": {
       "type": "string",
       "enum": [
+        "pending",
         "success",
         "denied",
         "confirmation_required",
@@ -362,6 +406,92 @@
         "$ref": "#/$defs/action_button"
       },
       "default": []
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^chat_s_[A-Za-z0-9_]+$"
+    },
+    "session_access_token": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 16
+    },
+    "conversation_scope": {
+      "type": "string",
+      "enum": [
+        "global",
+        "office",
+        "shipment",
+        "lane",
+        "carrier",
+        "analytics"
+      ]
+    },
+    "context_binding_state": {
+      "type": "string",
+      "enum": [
+        "bound",
+        "partial",
+        "stale",
+        "missing"
+      ]
+    },
+    "screen_sync_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "pending",
+        "applied",
+        "blocked"
+      ]
+    },
+    "active_resource": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "resource_type",
+        "resource_id",
+        "resource_fingerprint"
+      ],
+      "properties": {
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "shipment",
+            "carrier",
+            "lane",
+            "analytics",
+            "session"
+          ]
+        },
+        "resource_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resource_fingerprint": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "job_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^job_[A-Za-z0-9_]+$"
+    },
+    "job_poll_token": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 16
     },
     "policy": {
       "type": "object",
@@ -718,7 +848,13 @@
       "required": [
         "action_id",
         "label",
-        "action_type"
+        "action_type",
+        "resource_type",
+        "resource_id",
+        "surface",
+        "requires_confirmation",
+        "enabled",
+        "disabled_reason"
       ],
       "properties": {
         "action_id": {
@@ -737,8 +873,184 @@
             "confirm_booking",
             "cancel_booking"
           ]
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "shipment",
+            "carrier",
+            "lane",
+            "analytics",
+            "session"
+          ]
+        },
+        "resource_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "surface": {
+          "type": "string",
+          "enum": [
+            "chat",
+            "main_surface",
+            "drawer",
+            "modal"
+          ]
+        },
+        "requires_confirmation": {
+          "type": "boolean"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "disabled_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "server_endpoint": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "path"
+          ],
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": [
+                "GET",
+                "POST",
+                "PATCH",
+                "DELETE"
+              ]
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "permission_scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "office_id",
+            "role",
+            "broker_id"
+          ],
+          "properties": {
+            "office_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "role": {
+              "type": "string",
+              "enum": [
+                "broker"
+              ]
+            },
+            "broker_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "confirmation_token": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confirmation_expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ui_behavior": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "success_mode",
+            "failure_mode",
+            "post_success_refresh"
+          ],
+          "properties": {
+            "success_mode": {
+              "type": "string",
+              "enum": [
+                "chat_only",
+                "sync_chat_and_screen"
+              ]
+            },
+            "failure_mode": {
+              "type": "string",
+              "enum": [
+                "stay_in_confirmation",
+                "show_failure_message"
+              ]
+            },
+            "post_success_refresh": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            }
+          }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action_type": {
+                "const": "confirm_booking"
+              }
+            },
+            "required": [
+              "action_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "server_endpoint",
+              "permission_scope",
+              "confirmation_token",
+              "confirmation_expires_at",
+              "idempotency_key",
+              "ui_behavior"
+            ],
+            "properties": {
+              "requires_confirmation": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_type": {
+                "const": "cancel_booking"
+              }
+            },
+            "required": [
+              "action_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "requires_confirmation": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

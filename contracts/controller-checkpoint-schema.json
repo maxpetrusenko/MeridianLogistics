@@ -195,7 +195,7 @@
     },
     "terminal_state": {
       "type": ["string", "null"],
-      "enum": ["DONE", "BLOCKED", "WAITING_APPROVAL", "WAITING_USER_APPROVAL", "ABORTED", null]
+      "enum": ["DONE", "BLOCKED", "WAITING_USER_APPROVAL", "ABORTED", null]
     }
   }
 }
