@@ -334,13 +334,47 @@ class ControllerRuntime:
             )
 
         loaded = self.load_checkpoint(session_id)
-        if loaded.checkpoint is not None:
-            return loaded
-        return ControllerResumeResult(
-            protected_core=fallback_protected_core,
-            decision=loaded.decision,
-            checkpoint=None,
-        )
+        if loaded.checkpoint is None:
+            return ControllerResumeResult(
+                protected_core=fallback_protected_core,
+                decision=loaded.decision,
+                checkpoint=None,
+            )
+
+        checkpoint = loaded.checkpoint
+
+        # Controller truth first: re-evaluate queue state on resume
+        # to get fresh decision, not stale controller_last_decision
+        if checkpoint.queue is not None:
+            # Build queue items from checkpoint queue snapshot
+            queue_items = [
+                {
+                    "wave_name": checkpoint.queue.wave_name,
+                    "status": checkpoint.queue.status,
+                    "run_policy": checkpoint.queue.run_policy,
+                    "eligible": checkpoint.queue.eligible,
+                    "requires_explicit_request": checkpoint.queue.requires_explicit_request,
+                    "approval_authority": checkpoint.queue.approval_authority,
+                }
+            ]
+
+            # Fresh decision based on checkpoint queue truth
+            fresh_decision = self.queue_terminal_or_runnable_state(
+                queue_items=queue_items,
+                blocker_packet_present=False,
+            )
+
+            return ControllerResumeResult(
+                protected_core=checkpoint.protected_core,
+                decision=ControllerDecision(
+                    action=fresh_decision.action.value,
+                    reason="resume_from_checkpoint_queue_truth",
+                    source="controller",
+                ),
+                checkpoint=checkpoint,
+            )
+
+        return loaded
 
     def review_required(
         self,
