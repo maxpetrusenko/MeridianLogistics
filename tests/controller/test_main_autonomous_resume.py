@@ -457,6 +457,71 @@ class MainAutonomousResumeTests(unittest.TestCase):
             self.assertEqual(resumed.decision.action, "done",
                 "Resume from done checkpoint must return done action")
 
+    def test_close_active_wave_auto_promotes_next_eligible_wave_in_same_turn(self) -> None:
+        """
+        Live-path regression: When an active wave closes, controller must
+        auto-promote the next eligible auto wave in the same turn without
+        waiting for a manual packet.
+
+        This tests the full flow:
+        1. Active wave completes
+        2. Controller finalizes queue state
+        3. Next eligible auto wave is activated immediately
+        4. No status-only stop between waves
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = make_config(
+                root,
+                checkpoints_enabled=True,
+                precedence_enabled=True,
+            )
+            protected_core = make_protected_core("same-turn promotion goal")
+
+            # Setup: active wave with next eligible auto wave in queue
+            graph.controller_stage_transition(
+                session_id="sess-same-turn",
+                stage_name="review",
+                protected_core=protected_core,
+                legacy_action="review",
+                config=config,
+            )
+
+            # Close active wave and auto-promote next wave in one operation
+            decision = graph.controller_finalize_queue_state(
+                session_id="sess-same-turn",
+                current_wave="Active Wave",
+                queue_items=[
+                    {
+                        "wave_name": "Next Auto Wave",
+                        "status": "queued",
+                        "run_policy": "auto",
+                        "eligible": True,
+                    }
+                ],
+                blocker_packet_present=False,
+                config=config,
+            )
+
+            # CRITICAL: Next auto wave must activate in same turn
+            self.assertEqual(decision["action"], "continue",
+                "Must auto-promote next eligible auto wave")
+            self.assertEqual(decision["next_wave_name"], "Next Auto Wave",
+                "Must promote correct wave")
+            self.assertIsNone(decision["terminal_state"],
+                "Auto-promotion is not terminal")
+
+            # Verify checkpoint captures the transition
+            resumed = graph.controller_resume(
+                session_id="sess-same-turn",
+                fallback_protected_core=protected_core,
+                config=config,
+            )
+            self.assertEqual(resumed.checkpoint.queue.wave_name, "Next Auto Wave",
+                "Checkpoint must capture promoted wave")
+            self.assertEqual(resumed.checkpoint.queue.status, "active",
+                "Promoted wave must be active in checkpoint")
+
 
 if __name__ == "__main__":
     unittest.main()
