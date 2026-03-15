@@ -9,6 +9,8 @@ from backend.app.config import ROOT_DIR, load_config
 @dataclass(frozen=True)
 class DatabaseContext:
     database_url: str
+    direct_database_url: str
+    state_database_url: str
     schema_file: Path
     views_file: Path
     migrations_dir: Path
@@ -20,6 +22,8 @@ def load_database_context() -> DatabaseContext:
     config = load_config()
     return DatabaseContext(
         database_url=config.database_url,
+        direct_database_url=config.direct_database_url,
+        state_database_url=config.state_database_url,
         schema_file=ROOT_DIR / "db" / "schema.sql",
         views_file=ROOT_DIR / "db" / "views.sql",
         migrations_dir=ROOT_DIR / "db" / "migrations",
