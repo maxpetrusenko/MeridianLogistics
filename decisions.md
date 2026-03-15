@@ -46,6 +46,8 @@
 - Main is the primary orchestrator and should continue automatically across eligible `auto` waves.
 - Repair opens only on an exact blocker packet.
 - Review is selective, not the default lane.
+- Main must treat status-only reporting as non-terminal and continue unless a valid terminal state or exact blocker packet exists.
+- Main repair loop is mandatory: exact blocker -> bounded Repair -> wait -> selective Review when policy requires it -> `APPROVE` resumes automatically -> `REQUEST_REPAIR` reopens bounded Repair.
 - Do not open a separate control-hardening lane unless controller behavior itself regresses.
 - Bounded parallel subagents are allowed only for Drift Review, Research, and isolated Repair.
 - Parallel subagents are advisory only until Main explicitly merges their result.
@@ -61,6 +63,22 @@
 - Notification behavior may be rendered as informational state only. No notification dispatch action is in PoC contract scope.
 - Permission context is injected below the prompt and tool-selection layer, not authored by the model.
 - Lower-order operational defaults may stay provisional in contract `v0` when they do not change interface shape.
+
+## Locked Storage And Persistence Decisions
+
+Production/shared-dev:
+- Cheapest approved storage baseline is Neon Postgres for relational state plus Backblaze B2 for large generated artifacts.
+- Postgres remains the source of truth for queryable operational state, confirmation state, job state, manifest rows, and audit metadata.
+- Backblaze B2 stores generated PDFs, replay bundles, exports, and other blob-sized artifacts.
+
+Local development fallback:
+- SQLite for session/job state via MERIDIAN_STATE_DATABASE_URL (defaults to file-based SQLite)
+- Same read/write paths as production, just local persistence
+
+All environments:
+- Large generated files must not be stored in Postgres/SQLite.
+- B2 credentials remain backend-only and must not be exposed to the frontend.
+- Local development may leave B2 unset when artifact upload flows are not under test.
 
 ## Locked Control-Plane Routing Decisions
 
@@ -88,6 +106,11 @@
   8. return `BLOCKED` only with an exact artifact-backed blocker packet
   9. persist the resulting queue snapshot and terminal state into the latest controller checkpoint
 - Status reporting alone is never a terminal reason to stop.
+- Do not stop after progress reporting. If an eligible `auto` wave exists and no exact blocker packet exists, controller must continue automatically into that wave.
+- Status-only reports are advisory updates, not permission checkpoints.
+- **Controller checkpoint truth is authoritative over stale thread summaries**: repo truth wins on resume.
+- **Every resume must re-evaluate queue state from checkpoint**: the runtime loads the latest checkpoint queue snapshot and derives a fresh decision, not the stale `controller_last_decision`.
+- **Derived next-wave packet may be emitted from checkpoint truth**: when no fresh manual packet exists, Main derives the runnable wave from checkpoint queue truth automatically.
 
 ## Locked Approval Policy By Layer
 
@@ -104,11 +127,13 @@
 - Repair may open only when an exact blocker packet exists.
 - Exact blocker packet means exact failing assertion or runtime error, exact file path, exact contradiction text or failing check, and bounded affected scope.
 - Without that packet, Main handles the work directly or continues.
+- Repair outputs must include exact files changed, exact verification commands, and whether the blocker is fully closed or partial.
 
 ### Review approval policy
 
 - Review opens only when runtime or control-plane logic changed, more than one file changed, contract or checkpoint or routing semantics changed, blocker history previously stalled execution, or confidence is low.
 - Otherwise Main merges the bounded change and continues.
+- Review rejects only on exact artifact-backed issues and must not invent blockers.
 
 ### Research and web approval policy
 
@@ -131,7 +156,22 @@
 - A wave is complete only when the intended change exists, required checks passed, and no unsuperseded exact blocker remains.
 - If queue, checkpoint, report, and dispatch truth diverge on terminal state or next wave, controller must resolve that drift before returning `DONE` or `WAITING_USER_APPROVAL`.
 - After closeout controller must do exactly one: activate next eligible `auto` wave, self-approve the next safe internal approval-gated wave when Main owns approval authority, auto-instantiate the next approved safe project stage, emit `WAITING_USER_APPROVAL` only for queued user-authority approval waves when no auto work remains, emit `DONE` only when no runnable or safely instantiable wave remains, or emit `BLOCKED` only with exact blocker evidence.
+- Every lane-close handoff packet must include `stage_verdict`, `lane_closed`, `hard_stop_candidate`, `resume_point`, and exactly one of `next_wave_packet` or `needs_main_instantiation`.
 - The latest checkpoint must record the same queue snapshot and terminal state that the controller report and dispatch board claim.
+
+## Locked Front And Backend Productization Order
+
+- The next delivery wave set is locked to front and backend productization only.
+- Foundational backend contract and route seams for chat, session, and async job state are already present in repo state and do not reopen contract scope by themselves.
+- Remaining implementation order from current repo state is:
+  1. ~~frontend shell state and context binding~~ (complete)
+  2. ~~backend session and response API hardening around the new chat/session seam~~ (complete)
+  3. ~~real read execution path over allowlisted tools and DB context~~ (complete)
+  4. ~~real write execution path with stale-state recheck and idempotent replay~~ (complete)
+  5. ~~async job lifecycle expansion beyond scaffold pending state~~ (complete: 6-state lifecycle, durable persistence, poll token security, session promotion, reopen-safe visibility)
+  6. observability and replay gate closure (active)
+- No later wave may widen scope or skip ahead of that order unless controller truth is explicitly reopened.
+- Observability and replay gate closure is now the active wave because runtime behavior is real and async lifecycle is durable.
 
 ### Reopen approval policy
 
@@ -146,7 +186,7 @@
 - Curated Postgres view or tool layer instead of raw schema exposure
 - Redis or equivalent suspend and resume state for multi-step workflows
 
-These are design candidates, not source facts.
+These application-shape items remain design candidates, not source facts. The locked Neon Postgres plus Backblaze B2 storage baseline above is already promoted and is not part of this candidate list.
 
 ## Source Hygiene Rules
 

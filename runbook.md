@@ -13,6 +13,7 @@
 9. `dispatch-board.md` is the only file allowed to assign or change next ownership.
 10. Parallel drafting is allowed only across sibling artifacts unlocked by the same accepted parent.
 11. A healthy lane stays untouched when a peer lane wedges; replace only the wedged worker.
+12. Cheapest storage baseline is Neon Postgres for relational state plus Backblaze B2 for large generated artifacts (production/shared-dev).
 
 ## Source Authority
 
@@ -39,6 +40,21 @@
 
 Do not treat proposed architecture choices as source facts until the controller promotes them in `decisions.md`.
 
+## Storage Baseline
+
+Production/shared-dev:
+- Neon Postgres remains the source of truth for queryable state, job rows, manifest rows, and audit metadata.
+- Backblaze B2 holds generated PDFs, replay bundles, exports, and other blob-sized artifacts.
+
+Local development fallback:
+- SQLite for session/job state via MERIDIAN_STATE_DATABASE_URL (defaults to file-based SQLite)
+- Same read/write paths, just local persistence instead of Neon
+
+All environments:
+- Do not store large generated files in Postgres/SQLite.
+- Do not expose B2 credentials to the frontend.
+- Backend may run with B2 unset in local dev when artifact upload flows are not being exercised.
+
 ## Worker Startup Checklist
 
 Every worker task starts by reading:
@@ -57,6 +73,15 @@ Then the worker must:
 - load or check out the needed skills for that task
 - confirm workspace rules are loaded
 - name its owned artifact before editing
+
+Main must also load:
+- `.agents/agents/main.md`
+
+Repair must also load:
+- `.agents/agents/repair.md`
+
+Review must also load:
+- `.agents/agents/review.md`
 
 If cloning OSS or external tools:
 - destination must be `/Users/maxpetrusenko/Desktop/Projects/oss`
@@ -252,6 +277,20 @@ Valid next-stage candidate packet:
 - `run_policy`
 
 Status reporting alone is never a terminal reason to stop.
+- Do not stop after progress reporting. If an eligible `auto` wave exists and no exact blocker packet exists, controller must continue automatically into that wave.
+- **Controller checkpoint truth wins over stale thread summaries**: on resume, always reload latest checkpoint queue truth.
+- **Every resume must re-evaluate queue state**: derive fresh decision from checkpoint queue snapshot, not from stale `controller_last_decision`.
+- **Status-only resume with eligible auto wave continues automatically**: resume is not a permission checkpoint.
+
+## Main Repair Loop
+
+- Main is the controller and must not stop on a status-only update.
+- If an eligible `auto` wave exists and no exact blocker packet exists, Main continues automatically.
+- Exact blocker packet requires exact failing assertion or runtime error, exact file path, exact contradiction text or failing check, and bounded scope.
+- When an exact blocker packet exists and it affects the current reasoning path, Main opens bounded Repair on the cited files, waits, then routes the repair result to Review when review policy requires it.
+- If Review approves, Main resumes automatically from the returned `resume instruction`.
+- If Review requests repair, Main reopens bounded Repair from the review findings and loops again.
+- Main updates controller truth only after merge or closeout, not from an unreviewed advisory packet.
 
 ## Approval Policy Layers
 
@@ -268,12 +307,14 @@ Status reporting alone is never a terminal reason to stop.
 - Open Repair only when an exact blocker packet exists.
 - Exact blocker packet requires exact failing assertion or runtime error, exact file path, exact contradiction text or failing check, and bounded scope.
 - If that packet does not exist, do not open Repair.
+- If Repair closes the blocker, return to Review or Main with exact files changed plus exact verification commands.
 
 ### Review approval policy
 
 - Review is selective.
 - Open Review only when runtime or control-plane logic changed, more than one file changed, contract or checkpoint or routing semantics changed, blocker history previously stalled execution, or confidence is low.
 - Otherwise Main continues directly.
+- Review rejects only on exact artifact-backed issues and must not invent blockers.
 
 ### Research and web approval policy
 
@@ -307,6 +348,8 @@ Status reporting alone is never a terminal reason to stop.
   5. emit `DONE` only when no runnable or safely instantiable wave remains
   6. emit `BLOCKED` only with exact blocker evidence
   7. persist the same queue snapshot and terminal state into the latest controller checkpoint
+- Every lane-close handoff packet must include `stage_verdict`, `lane_closed`, `hard_stop_candidate`, `resume_point`, and exactly one of `next_wave_packet` or `needs_main_instantiation`.
+- Lane-close packets from Repair or Review must be treated as execution-facing inputs, not conversational summaries.
 
 ### Abort terminal policy
 
@@ -505,10 +548,14 @@ Next consumer:
 
 Gate result:
 - <none|drafted|accepted|rejected>
+Lane closed:
+- true|false
 Resume point:
 - <single next concrete step>
 Hard stop candidate:
 - <constraint breach under evaluation or "none">
+Next wave packet or needs Main instantiation:
+- <packet summary or `needs_main_instantiation: true`>
 Checkpoint:
 - <compact checkpoint block or checkpoint ref>
 
@@ -520,6 +567,7 @@ Confidence: low|medium|high
 
 Reports may recommend a next consumer, but they do not assign ownership. Only `dispatch-board.md` can do that.
 Non-controller reports may not emit final `ABORT`.
+Every lane-close report must include `stage_verdict`, `lane_closed`, `hard_stop_candidate`, `resume_point`, and exactly one of `Next wave packet` or `Needs Main instantiation`.
 
 ## Ownership Model
 

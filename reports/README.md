@@ -84,8 +84,13 @@ Confidence: low|medium|high
 - When a controller wave closes, the controller report must also state the next queue result: auto-promoted wave, `WAITING_USER_APPROVAL`, `DONE`, `BLOCKED`, or `ABORTED`
 - Main controller reports should assume automatic continuation unless policy requires delegation, approval, or a terminal state
 - Stored controller checkpoints must include queue snapshot plus terminal-state truth so report truth can be compared directly against checkpoint and dispatch truth
+- **Controller checkpoint truth is authoritative on resume**: reports should reference checkpoint queue truth, not thread summaries
+- **Derived next-wave packet may be emitted from checkpoint truth**: when no fresh manual packet exists, the checkpoint queue snapshot provides the next runnable wave
+- **Status-only updates are never terminal**: resume with eligible auto wave must continue, not pause for user input
 - Repair requests must include an exact blocker packet: exact failing assertion or runtime error, exact file path, exact contradiction text or failing check, bounded scope
 - Review requests must state which selective-gate condition triggered review
+- Review requests must stay bounded to one artifact or at most two directly related files; split larger review packets before dispatch
+- Review reports must put the lane verdict on the first non-empty line using exactly one of `APPROVE`, `REQUEST_REPAIR`, `NEEDS_VERIFICATION`, or `HOLD`
 - Reopen requests must include fresh exact blocker evidence and explicit controller reopen intent
 
 ## Compact Checkpoint
