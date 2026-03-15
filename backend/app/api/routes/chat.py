@@ -169,7 +169,17 @@ def _base_payload(
     denial_reason_class: str = "none",
     job_id: str | None = None,
     job_poll_token: str | None = None,
+    autonomy_audit: dict[str, object] | None = None,
 ) -> dict[str, object]:
+    audit_data: dict[str, object] = {
+        "actor_role": session.role,
+        "office_scope": session.office_id,
+        "tool_path": tool_path,
+        "response_generated_at": _now_iso(),
+    }
+    if autonomy_audit:
+        audit_data.update(autonomy_audit)
+
     return {
         "contract_version": "0.1.0",
         "response_id": _response_id("resp"),
@@ -195,12 +205,7 @@ def _base_payload(
             "write_confirmation_required": False,
             "denial_reason_class": denial_reason_class,
         },
-        "audit": {
-            "actor_role": session.role,
-            "office_scope": session.office_id,
-            "tool_path": tool_path,
-            "response_generated_at": _now_iso(),
-        },
+        "audit": audit_data,
     }
 
 
@@ -311,6 +316,17 @@ def post_chat(request_payload: ChatRequest, request: Request) -> ChatResponseEnv
         )
         pending_session = replace(pending_session, last_job_id=job.job_id)
         session_store.save_session(pending_session)
+
+        # Build autonomy audit fields if autonomy was seeded
+        autonomy_audit = None
+        if autonomy_seeded:
+            autonomy_audit = {
+                "autonomy_mode": "poll_driven",
+                "autonomy_task_kind": "async_read_refresh",
+                "autonomy_run_id": job.job_id,
+                "checkpoint_id": f"{job.job_id}:seed",
+            }
+
         payload = _base_payload(
             session=pending_session,
             intent_class="read_pending",
@@ -327,6 +343,7 @@ def post_chat(request_payload: ChatRequest, request: Request) -> ChatResponseEnv
             tool_path=[],
             job_id=job.job_id,
             job_poll_token=job.job_poll_token,
+            autonomy_audit=autonomy_audit,
         )
     else:
         saved_session = session_store.save_session(session)
