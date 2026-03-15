@@ -38,6 +38,9 @@ class AppConfig:
     b2_bucket_name: str | None = None
     b2_access_key_id: str | None = None
     b2_secret_access_key: str | None = None
+    running_autonomy_enabled: bool = False
+    running_autonomy_max_steps: int = 3
+    running_autonomy_poll_step_timeout_seconds: int = 5
 
 
 def load_config() -> AppConfig:
@@ -84,4 +87,10 @@ def load_config() -> AppConfig:
         b2_bucket_name=os.getenv("MERIDIAN_B2_BUCKET_NAME"),
         b2_access_key_id=os.getenv("MERIDIAN_B2_ACCESS_KEY_ID"),
         b2_secret_access_key=os.getenv("MERIDIAN_B2_SECRET_ACCESS_KEY"),
+        running_autonomy_enabled=_env_flag(
+            "MERIDIAN_RUNNING_AUTONOMY_ENABLED",
+            default=False,
+        ),
+        running_autonomy_max_steps=int(os.getenv("MERIDIAN_RUNNING_AUTONOMY_MAX_STEPS", "3")),
+        running_autonomy_poll_step_timeout_seconds=int(os.getenv("MERIDIAN_RUNNING_AUTONOMY_POLL_STEP_TIMEOUT_SECONDS", "5")),
     )

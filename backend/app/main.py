@@ -5,6 +5,7 @@ from fastapi import FastAPI
 import uvicorn
 
 from backend.app.api.router import api_router
+from backend.app.autonomy.service import BoundedAutonomyService
 from backend.app.config import load_config
 from backend.app.db.read_repository import ReadRepository
 from backend.app.gateway.idempotency_store import IdempotencyMapping
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
     app.state.job_store = InMemoryJobStore(database_url=config.state_database_url)
     app.state.idempotency_store: IdempotencyMapping = {}
     app.state.storage_service = StorageService.from_env()
+    app.state.autonomy_service = BoundedAutonomyService(config)
     app.include_router(api_router)
     return app
 
