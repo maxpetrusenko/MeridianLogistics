@@ -6,6 +6,7 @@ import {
   FIXTURE_RENDER_TIME,
   buildActionResult,
   fixtures,
+  getActionInteractivity,
   makeResponse,
 } from "../src/response-model.js";
 
@@ -33,13 +34,43 @@ test("confirm action submits when confirmation payload is still valid", () => {
       },
     ],
     actions: [
-      { action_id: "confirm-booking", label: "Confirm booking", action_type: "confirm_booking" },
-      { action_id: "cancel-booking", label: "Cancel", action_type: "cancel_booking" },
+      {
+        action_id: "confirm-booking",
+        label: "Confirm booking",
+        action_type: "confirm_booking",
+        resource_type: "shipment",
+        resource_id: "88219",
+        surface: "chat",
+        requires_confirmation: true,
+        enabled: true,
+        disabled_reason: null,
+        server_endpoint: { method: "POST", path: "/shipments/88219/book" },
+        permission_scope: { office_id: "memphis", role: "broker", broker_id: "broker-123" },
+        confirmation_token: "valid-token",
+        confirmation_expires_at: "2026-03-15T23:59:00Z",
+        idempotency_key: "book-88219-arrow-freight-2026-03-15-v1",
+        ui_behavior: {
+          success_mode: "sync_chat_and_screen",
+          failure_mode: "stay_in_confirmation",
+          post_success_refresh: ["shipment_detail", "dispatch_board"],
+        },
+      },
+      {
+        action_id: "cancel-booking",
+        label: "Cancel",
+        action_type: "cancel_booking",
+        resource_type: "shipment",
+        resource_id: "88219",
+        surface: "chat",
+        requires_confirmation: false,
+        enabled: true,
+        disabled_reason: null,
+      },
     ],
   });
 
   const result = buildActionResult({
-    action: { action_type: "confirm_booking" },
+    action: validConfirmation.actions[0],
     response: validConfirmation,
     referenceTime: FIXTURE_RENDER_TIME,
   });
@@ -74,13 +105,43 @@ test("expired confirmation notice derives from the active payload expiry", () =>
       },
     ],
     actions: [
-      { action_id: "confirm-booking", label: "Confirm booking", action_type: "confirm_booking" },
-      { action_id: "cancel-booking", label: "Cancel", action_type: "cancel_booking" },
+      {
+        action_id: "confirm-booking",
+        label: "Confirm booking",
+        action_type: "confirm_booking",
+        resource_type: "shipment",
+        resource_id: "88219",
+        surface: "chat",
+        requires_confirmation: true,
+        enabled: true,
+        disabled_reason: null,
+        server_endpoint: { method: "POST", path: "/shipments/88219/book" },
+        permission_scope: { office_id: "memphis", role: "broker", broker_id: "broker-123" },
+        confirmation_token: "expired-token",
+        confirmation_expires_at: "2026-03-12T08:30:00Z",
+        idempotency_key: "book-88219-arrow-freight-2026-03-12-v1",
+        ui_behavior: {
+          success_mode: "sync_chat_and_screen",
+          failure_mode: "stay_in_confirmation",
+          post_success_refresh: ["shipment_detail", "dispatch_board"],
+        },
+      },
+      {
+        action_id: "cancel-booking",
+        label: "Cancel",
+        action_type: "cancel_booking",
+        resource_type: "shipment",
+        resource_id: "88219",
+        surface: "chat",
+        requires_confirmation: false,
+        enabled: true,
+        disabled_reason: null,
+      },
     ],
   });
 
   const result = buildActionResult({
-    action: { action_type: "confirm_booking" },
+    action: expiredConfirmation.actions[0],
     response: expiredConfirmation,
     referenceTime: FIXTURE_RENDER_TIME,
   });
@@ -96,6 +157,50 @@ test("shipment exception fixture includes the contract primary table", () => {
   assert.equal(fixtures.timeline.response.audit.tool_path[0], "shipment_exception_lookup");
   assert.equal(componentTypes[0], "table");
   assert.ok(componentTypes.includes("timeline"));
+});
+
+test("confirm action requires canonical write metadata", () => {
+  const brokenAction = {
+    ...fixtures.confirm.response.actions[0],
+    idempotency_key: "",
+  };
+
+  const result = buildActionResult({
+    action: brokenAction,
+    response: fixtures.confirm.response,
+    referenceTime: FIXTURE_RENDER_TIME,
+  });
+
+  assert.equal(result.nextResponse, fixtures.confirm.response);
+  assert.match(result.actionNotice.body, /idempotency/i);
+});
+
+test("server-disabled actions stay disabled client-side with contract reason", () => {
+  const actionState = getActionInteractivity({
+    ...fixtures.confirm.response.actions[0],
+    enabled: false,
+    disabled_reason: "Carrier quote expired on the server.",
+  });
+
+  assert.equal(actionState.disabled, true);
+  assert.equal(actionState.reason, "Carrier quote expired on the server.");
+});
+
+test("disabled confirm action fails closed even if invoked", () => {
+  const disabledAction = {
+    ...fixtures.confirm.response.actions[0],
+    enabled: false,
+    disabled_reason: "Carrier quote expired on the server.",
+  };
+
+  const result = buildActionResult({
+    action: disabledAction,
+    response: fixtures.confirm.response,
+    referenceTime: FIXTURE_RENDER_TIME,
+  });
+
+  assert.equal(result.nextResponse, fixtures.confirm.response);
+  assert.match(result.actionNotice.body, /carrier quote expired on the server/i);
 });
 
 test("all non-loading fixtures satisfy the accepted response contract", () => {

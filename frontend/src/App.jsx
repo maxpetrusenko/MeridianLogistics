@@ -1,40 +1,46 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { getJob, postChat, postConfirmAction } from "./chat-client.js";
+import {
+  getJobPollResultAction,
+  getJobPollFailureAction,
+  INITIAL_JOB_POLL_DELAY_MS,
+} from "./job-polling.js";
+import {
+  applyChatResponse,
+  buildChatRequest,
+  clearJobState,
+  createInitialChatShellState,
+  cyclePanelState,
+  getBindingBadge,
+  getJobDisplayState,
+  markJobError,
+  replacePendingJobResponse,
+  updateJobPollingState,
+} from "./chat-state.js";
 import {
   buildActionResult,
-  fixtures,
+  getActionInteractivity,
   getConfirmationCard,
   getResponseMode,
   getStaleConfirmationNotice,
   isExpired,
-  sampleKeys,
 } from "./response-model.js";
 
 const shellStyle = {
-  width: "min(1100px, 100%)",
+  width: "min(1200px, 100%)",
 };
 
-const layoutStyle = {
+const appLayoutStyle = {
   display: "grid",
   gap: "24px",
 };
 
-const tabRowStyle = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: "10px",
-  marginBottom: "20px",
+const gridStyle = {
+  display: "grid",
+  gap: "12px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
 };
-
-const tabStyle = (active) => ({
-  border: `1px solid ${active ? "#ffb375" : "rgba(255,255,255,0.12)"}`,
-  background: active ? "rgba(255,179,117,0.14)" : "rgba(255,255,255,0.04)",
-  color: "#f7f4ef",
-  borderRadius: "999px",
-  padding: "10px 14px",
-  font: "inherit",
-  cursor: "pointer",
-});
 
 const sectionStyle = {
   display: "grid",
@@ -43,21 +49,73 @@ const sectionStyle = {
 
 const cardStyle = {
   border: "1px solid rgba(255,255,255,0.12)",
-  borderRadius: "18px",
+  borderRadius: "20px",
   padding: "18px",
   background: "rgba(255,255,255,0.03)",
 };
 
-const gridStyle = {
+const transcriptStyle = {
+  ...cardStyle,
   display: "grid",
-  gap: "12px",
-  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  gap: "14px",
+};
+
+const composerStyle = {
+  ...cardStyle,
+  display: "grid",
+  gap: "14px",
+};
+
+const toneStyle = {
+  informational: { borderColor: "rgba(113, 196, 255, 0.35)" },
+  warning: { borderColor: "rgba(255, 179, 117, 0.5)" },
+  error: { borderColor: "rgba(255, 112, 112, 0.55)" },
 };
 
 const actionRowStyle = {
   display: "flex",
   flexWrap: "wrap",
   gap: "10px",
+};
+
+const actionItemStyle = {
+  display: "grid",
+  gap: "6px",
+};
+
+const actionHintStyle = {
+  margin: 0,
+  color: "#ffb375",
+  fontSize: "0.82rem",
+  maxWidth: "260px",
+};
+
+const inputStyle = {
+  width: "100%",
+  borderRadius: "14px",
+  border: "1px solid rgba(255,255,255,0.12)",
+  background: "rgba(255,255,255,0.04)",
+  color: "#f7f4ef",
+  padding: "12px 14px",
+  font: "inherit",
+};
+
+const badgeToneStyle = {
+  live: {
+    border: "1px solid rgba(95, 216, 161, 0.35)",
+    background: "rgba(95, 216, 161, 0.08)",
+    color: "#b8f3d7",
+  },
+  warning: {
+    border: "1px solid rgba(255, 179, 117, 0.35)",
+    background: "rgba(255, 179, 117, 0.08)",
+    color: "#ffd6a7",
+  },
+  neutral: {
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#d7dfef",
+  },
 };
 
 const actionStyle = (kind, disabled = false) => ({
@@ -71,11 +129,26 @@ const actionStyle = (kind, disabled = false) => ({
   opacity: disabled ? 0.55 : kind === "confirm_booking" || kind === "cancel_booking" ? 1 : 0.9,
 });
 
-const toneStyle = {
-  informational: { borderColor: "rgba(113, 196, 255, 0.35)" },
-  warning: { borderColor: "rgba(255, 179, 117, 0.5)" },
-  error: { borderColor: "rgba(255, 112, 112, 0.55)" },
-};
+function ActionButton({ action, actionState, onAction }) {
+  return (
+    <div style={actionItemStyle}>
+      <button
+        type="button"
+        style={actionStyle(action.action_type, actionState.disabled)}
+        disabled={actionState.disabled}
+        title={actionState.reason ?? undefined}
+        onClick={() => {
+          if (!actionState.disabled) {
+            onAction(action);
+          }
+        }}
+      >
+        {action.label}
+      </button>
+      {actionState.reason ? <p style={actionHintStyle}>{actionState.reason}</p> : null}
+    </div>
+  );
+}
 
 function SummaryBlock({ text }) {
   return (
@@ -184,7 +257,7 @@ function TimelineBlock({ component }) {
   );
 }
 
-function ConfirmationCard({ component, actions, onAction, disabled }) {
+function ConfirmationCard({ component, actions, onAction, confirmationExpired }) {
   const confirmationActions = actions.filter((action) =>
     ["confirm_booking", "cancel_booking"].includes(action.action_type),
   );
@@ -205,17 +278,10 @@ function ConfirmationCard({ component, actions, onAction, disabled }) {
       </p>
       <p className="body">Expires: {component.expires_at}</p>
       <div style={actionRowStyle}>
-        {confirmationActions.map((action) => (
-          <button
-            key={action.action_id}
-            type="button"
-            style={actionStyle(action.action_type, disabled)}
-            disabled={disabled}
-            onClick={() => onAction(action)}
-          >
-            {action.label}
-          </button>
-        ))}
+        {confirmationActions.map((action) => {
+          const actionState = getActionInteractivity(action, { confirmationExpired });
+          return <ActionButton key={action.action_id} action={action} actionState={actionState} onAction={onAction} />;
+        })}
       </div>
     </section>
   );
@@ -235,47 +301,18 @@ function ActionBar({ actions, intentClass, onAction }) {
     <section style={cardStyle}>
       <p className="eyebrow">Actions</p>
       <div style={actionRowStyle}>
-        {visibleActions.map((action) => (
-          <button
-            key={action.action_id}
-            type="button"
-            style={actionStyle(action.action_type)}
-            onClick={() => onAction(action)}
-          >
-            {action.label}
-          </button>
-        ))}
+        {visibleActions.map((action) => {
+          const actionState = getActionInteractivity(action);
+          return <ActionButton key={action.action_id} action={action} actionState={actionState} onAction={onAction} />;
+        })}
       </div>
     </section>
   );
 }
 
-function LoadingState() {
-  return (
-    <section style={cardStyle}>
-      <p className="eyebrow">Loading</p>
-      <p className="body" style={{ marginBottom: 0 }}>
-        Request in progress. Prior confirmed state stays stable until the next payload arrives.
-      </p>
-    </section>
-  );
-}
-
-function ResponseRenderer({ response, previousResponse, actionNotice, onAction }) {
+function ResponseRenderer({ response, actionNotice, onAction }) {
   if (!response) {
-    return (
-      <div style={sectionStyle}>
-        <LoadingState />
-        {previousResponse ? (
-          <ResponseRenderer
-            response={previousResponse}
-            previousResponse={null}
-            actionNotice={actionNotice}
-            onAction={onAction}
-          />
-        ) : null}
-      </div>
-    );
+    return null;
   }
 
   const responseMode = getResponseMode(response);
@@ -296,9 +333,7 @@ function ResponseRenderer({ response, previousResponse, actionNotice, onAction }
   return (
     <div style={sectionStyle}>
       <SummaryBlock text={response.summary} />
-      {confirmationExpired ? (
-        <MessageBlock component={getStaleConfirmationNotice(confirmationCard?.expires_at)} />
-      ) : null}
+      {confirmationExpired ? <MessageBlock component={getStaleConfirmationNotice(confirmationCard?.expires_at)} /> : null}
       {actionNotice ? <MessageBlock component={actionNotice} /> : null}
       {visibleComponents.map((component, index) => {
         const key = `${component.component_type}-${index}`;
@@ -319,7 +354,7 @@ function ResponseRenderer({ response, previousResponse, actionNotice, onAction }
                 component={component}
                 actions={actions}
                 onAction={onAction}
-                disabled={confirmationExpired}
+                confirmationExpired={confirmationExpired}
               />
             );
           default:
@@ -331,73 +366,377 @@ function ResponseRenderer({ response, previousResponse, actionNotice, onAction }
   );
 }
 
+function AssistantMessage({ message, actionNotice, onAction }) {
+  return (
+    <article style={{ ...cardStyle, padding: "16px" }}>
+      <p className="eyebrow">Meridian</p>
+      <ResponseRenderer response={message.response} actionNotice={actionNotice} onAction={onAction} />
+    </article>
+  );
+}
+
+function UserMessage({ message }) {
+  return (
+    <article style={{ ...cardStyle, padding: "16px", borderColor: "rgba(255,179,117,0.25)" }}>
+      <p className="eyebrow">Broker</p>
+      <p className="body" style={{ marginBottom: 0 }}>
+        {message.prompt}
+      </p>
+    </article>
+  );
+}
+
+function EmptyTranscript() {
+  return (
+    <section style={cardStyle}>
+      <p className="eyebrow">Session idle</p>
+      <p className="body" style={{ marginBottom: 0 }}>
+        Start with a Memphis shipment question. The shell will keep session scope, visible context binding, and async job status.
+      </p>
+    </section>
+  );
+}
+
 export default function App() {
-  const [activeKey, setActiveKey] = useState("metrics");
-  const [activeResponse, setActiveResponse] = useState(fixtures.metrics.response);
-  const [lastResolvedResponse, setLastResolvedResponse] = useState(fixtures.metrics.response);
-  const [actionNotice, setActionNotice] = useState(null);
+  const [shellState, setShellState] = useState(createInitialChatShellState);
+  const [prompt, setPrompt] = useState("");
+  const [currentModule, setCurrentModule] = useState("dispatch_board");
+  const [resourceId, setResourceId] = useState("");
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [actionNotices, setActionNotices] = useState({});
 
-  function handleSelect(key) {
-    const nextResponse = fixtures[key]?.response ?? null;
+  const bindingBadge = getBindingBadge(shellState);
 
-    setActiveKey(key);
-    setActiveResponse(nextResponse);
-    setActionNotice(null);
-    if (nextResponse) {
-      setLastResolvedResponse(nextResponse);
+  useEffect(() => {
+    if (!shellState.activeJobId || !shellState.activeJobPollToken) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    let timeoutId = null;
+    let consecutiveFailures = 0;
+
+    const schedulePoll = (delayMs) => {
+      timeoutId = window.setTimeout(async () => {
+        try {
+          const job = await getJob(shellState.activeJobId, {
+            jobPollToken: shellState.activeJobPollToken,
+          });
+          if (cancelled) {
+            return;
+          }
+
+          setErrorMessage(null);
+          consecutiveFailures = 0;
+          const resultAction = getJobPollResultAction(job, { delayMs });
+          if (resultAction.type === "complete") {
+            setShellState((currentState) => replacePendingJobResponse(currentState, resultAction.result));
+            return;
+          }
+          if (resultAction.type === "retry") {
+            setShellState((currentState) =>
+              updateJobPollingState(currentState, {
+                status: resultAction.status,
+                message: resultAction.message,
+              }),
+            );
+            schedulePoll(resultAction.delayMs);
+            return;
+          }
+          setErrorMessage(resultAction.message);
+          setShellState((currentState) => markJobError(currentState, resultAction.message));
+        } catch (error) {
+          if (cancelled) {
+            return;
+          }
+          const failureAction = getJobPollFailureAction(error, {
+            delayMs,
+            consecutiveFailures,
+          });
+          consecutiveFailures = failureAction.consecutiveFailures;
+          if (failureAction.retry) {
+            setErrorMessage(failureAction.message);
+            schedulePoll(failureAction.delayMs);
+            return;
+          }
+          setErrorMessage(failureAction.message);
+          setShellState((currentState) => markJobError(currentState, failureAction.message));
+        }
+      }, delayMs);
+    };
+
+    schedulePoll(INITIAL_JOB_POLL_DELAY_MS);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [shellState.activeJobId, shellState.activeJobPollToken]);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    const trimmedPrompt = prompt.trim();
+    if (!trimmedPrompt) {
+      return;
+    }
+
+    const request = buildChatRequest({
+      prompt: trimmedPrompt,
+      sessionId: shellState.sessionId,
+      sessionAccessToken: shellState.sessionAccessToken,
+      currentModule,
+      resourceId: resourceId.trim(),
+    });
+
+    setErrorMessage(null);
+    setShellState((currentState) => ({
+      ...currentState,
+      sessionState: currentState.sessionId ? "loading" : "loading",
+    }));
+
+    try {
+      const response = await postChat(request);
+      setShellState((currentState) => applyChatResponse(currentState, response, trimmedPrompt));
+      setPrompt("");
+    } catch (error) {
+      setErrorMessage(error.message);
+      setShellState((currentState) => ({
+        ...currentState,
+        sessionState: "error",
+      }));
     }
   }
 
-  function handleAction(action) {
-    const { nextResponse, actionNotice: nextActionNotice } = buildActionResult({
-      action,
-      response: activeResponse,
-      referenceTime: new Date().toISOString(),
+  async function handleAction(messageId, action) {
+    const confirmationCard = action.action_type === "confirm_booking"
+      ? shellState.messages.find((m) => m.id === messageId)?.response?.components?.find(
+          (c) => c.component_type === "confirmation_card"
+        )
+      : null;
+
+    if (confirmationCard && action.confirmation_token && action.idempotency_key) {
+      setActionNotices((currentNotices) => ({
+        ...currentNotices,
+        [messageId]: {
+          component_id: `msg-action-pending-${action.action_id}`,
+          component_type: "message_block",
+          body: "Confirming booking...",
+          tone: "informational",
+        },
+      }));
+
+      try {
+        const response = await postConfirmAction({
+          actionName: confirmationCard.action_name || "booking_create_confirmed",
+          confirmationToken: action.confirmation_token,
+          idempotencyKey: action.idempotency_key,
+          sessionId: shellState.sessionId,
+          sessionAccessToken: shellState.sessionAccessToken,
+        });
+
+        setShellState((currentState) => applyChatResponse(currentState, response, null));
+        setActionNotices((currentNotices) => ({
+          ...currentNotices,
+          [messageId]: {
+            component_id: `msg-action-complete-${action.action_id}`,
+            component_type: "message_block",
+            body: response.summary,
+            tone: response.intent_class === "write_submitted" ? "informational" : "warning",
+          },
+        }));
+      } catch (error) {
+        setErrorMessage(error.message);
+        setActionNotices((currentNotices) => ({
+          ...currentNotices,
+          [messageId]: {
+            component_id: `msg-action-error-${action.action_id}`,
+            component_type: "message_block",
+            body: `Confirmation failed: ${error.message}`,
+            tone: "error",
+          },
+        }));
+      }
+      return;
+    }
+
+    setShellState((currentState) => {
+      const targetMessage = currentState.messages.find((message) => message.id === messageId);
+      if (!targetMessage?.response) {
+        return currentState;
+      }
+
+      const { nextResponse, actionNotice } = buildActionResult({
+        action,
+        response: targetMessage.response,
+        referenceTime: new Date().toISOString(),
+      });
+
+      setActionNotices((currentNotices) => ({
+        ...currentNotices,
+        [messageId]: actionNotice,
+      }));
+
+      return {
+        ...currentState,
+        messages: currentState.messages.map((message) =>
+          message.id === messageId && nextResponse
+            ? {
+                ...message,
+                response: nextResponse,
+                id: nextResponse.response_id,
+              }
+            : message,
+        ),
+      };
     });
-
-    setActionNotice(nextActionNotice);
-
-    if (nextResponse !== activeResponse) {
-      setActiveResponse(nextResponse);
-    }
-
-    if (nextResponse) {
-      setLastResolvedResponse(nextResponse);
-    }
   }
 
   return (
     <main className="shell" style={shellStyle}>
-      <section className="panel" style={layoutStyle}>
-        <div>
-          <p className="eyebrow">Meridian Logistics</p>
-          <h1>Structured response renderer</h1>
-          <p className="body">
-            Contract-anchored frontend slice. Memphis-only PoC states: loading, empty, read,
-            denial, error, and booking confirmation.
-          </p>
-        </div>
-
-        <section>
-          <div style={tabRowStyle}>
-            {sampleKeys.map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => handleSelect(key)}
-                style={tabStyle(activeKey === key)}
-              >
-                {fixtures[key]?.label ?? "Loading"}
-              </button>
-            ))}
+      <section className="panel chat-panel" style={appLayoutStyle}>
+        <header style={{ display: "grid", gap: "14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "start", flexWrap: "wrap" }}>
+            <div>
+              <p className="eyebrow">Meridian Logistics</p>
+              <h1>Chat session</h1>
+              <p className="body" style={{ maxWidth: "760px" }}>
+                Ask Meridian
+                {" "}
+                for shipment context, analytics refreshes, and confirmation-bound actions. Session scope and binding state stay visible in the shell.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => setShellState((currentState) => ({ ...currentState, panelState: cyclePanelState(currentState.panelState) }))}
+            >
+              Panel: {shellState.panelState}
+            </button>
           </div>
-          <ResponseRenderer
-            response={activeResponse}
-            previousResponse={lastResolvedResponse}
-            actionNotice={actionNotice}
-            onAction={handleAction}
-          />
+
+          <div style={gridStyle}>
+            <article style={{ ...cardStyle, padding: "14px" }}>
+              <p className="eyebrow">Session</p>
+              <strong>{shellState.sessionId ?? "New chat session"}</strong>
+              <p className="body" style={{ margin: "8px 0 0" }}>
+                State: {shellState.sessionState}
+              </p>
+            </article>
+            <article style={{ ...cardStyle, padding: "14px", ...badgeToneStyle[bindingBadge.tone] }}>
+              <p className="eyebrow">Binding</p>
+              <strong>{bindingBadge.label}</strong>
+              <p className="body" style={{ margin: "8px 0 0" }}>
+                {bindingBadge.detail}
+              </p>
+            </article>
+            <article style={{ ...cardStyle, padding: "14px" }}>
+              <p className="eyebrow">Scope</p>
+              <strong>{shellState.conversationScope}</strong>
+              <p className="body" style={{ margin: "8px 0 0" }}>
+                Screen sync: {shellState.screenSyncState}
+              </p>
+            </article>
+            <article style={{ ...cardStyle, padding: "14px" }}>
+              <p className="eyebrow">Async</p>
+              <strong>{shellState.activeJobId ?? "No active job"}</strong>
+              <p className="body" style={{ margin: "8px 0 0" }}>
+                {(() => {
+                  const jobDisplay = getJobDisplayState(shellState);
+                  if (!jobDisplay.hasJob) {
+                    return "No background task in flight.";
+                  }
+                  return `${jobDisplay.status ? `${jobDisplay.status}: ` : ""}${jobDisplay.message}`;
+                })()}
+              </p>
+            </article>
+          </div>
+        </header>
+
+        <section style={transcriptStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+            <div>
+              <p className="eyebrow">Transcript</p>
+              <p className="body" style={{ marginBottom: 0 }}>
+                Memphis-only trusted context. Backend responses remain the only render source.
+              </p>
+            </div>
+          </div>
+
+          {errorMessage ? (
+            <section style={{ ...cardStyle, ...toneStyle.error }}>
+              <p className="eyebrow">error</p>
+              <p className="body" style={{ marginBottom: 0 }}>
+                {errorMessage}
+              </p>
+            </section>
+          ) : null}
+
+          {shellState.messages.length === 0 ? <EmptyTranscript /> : null}
+          {shellState.messages.map((message) =>
+            message.role === "user" ? (
+              <UserMessage key={message.id} message={message} />
+            ) : (
+              <AssistantMessage
+                key={message.id}
+                message={message}
+                actionNotice={actionNotices[message.id] ?? null}
+                onAction={(action) => handleAction(message.id, action)}
+              />
+            ),
+          )}
         </section>
+
+        <form style={composerStyle} onSubmit={handleSubmit}>
+          <div style={gridStyle}>
+            <label style={{ display: "grid", gap: "8px" }}>
+              <span className="eyebrow" style={{ marginBottom: 0 }}>
+                Module
+              </span>
+              <select value={currentModule} onChange={(event) => setCurrentModule(event.target.value)} style={inputStyle}>
+                <option value="dispatch_board">Dispatch board</option>
+                <option value="track_trace">Track and trace</option>
+                <option value="analytics">Analytics</option>
+              </select>
+            </label>
+            <label style={{ display: "grid", gap: "8px" }}>
+              <span className="eyebrow" style={{ marginBottom: 0 }}>
+                Active shipment
+              </span>
+              <input
+                type="text"
+                value={resourceId}
+                onChange={(event) => setResourceId(event.target.value)}
+                placeholder="88219"
+                style={inputStyle}
+              />
+            </label>
+          </div>
+
+          <label style={{ display: "grid", gap: "8px" }}>
+            <span className="eyebrow" style={{ marginBottom: 0 }}>
+              Ask Meridian
+            </span>
+            <textarea
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              rows={4}
+              placeholder="Show shipment 88219 details."
+              style={{ ...inputStyle, resize: "vertical", minHeight: "120px" }}
+            />
+          </label>
+
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "center", flexWrap: "wrap" }}>
+            <p className="body" style={{ marginBottom: 0 }}>
+              Writes stay confirmation-only. Background reads surface as job-backed pending states.
+            </p>
+            <button type="submit" className="primary-button" disabled={shellState.sessionState === "loading"}>
+              {shellState.sessionState === "loading" ? "Sending..." : "Send prompt"}
+            </button>
+          </div>
+        </form>
       </section>
     </main>
   );

@@ -37,6 +37,57 @@ export function makeResponse({
   };
 }
 
+function makeAction({
+  actionId,
+  label,
+  actionType,
+  resourceType,
+  resourceId,
+  surface = "chat",
+  requiresConfirmation = false,
+  enabled = true,
+  disabledReason = null,
+  serverEndpoint,
+  permissionScope,
+  confirmationToken,
+  confirmationExpiresAt,
+  idempotencyKey,
+  uiBehavior,
+}) {
+  const action = {
+    action_id: actionId,
+    label,
+    action_type: actionType,
+    resource_type: resourceType,
+    resource_id: resourceId,
+    surface,
+    requires_confirmation: requiresConfirmation,
+    enabled,
+    disabled_reason: disabledReason,
+  };
+
+  if (serverEndpoint) {
+    action.server_endpoint = serverEndpoint;
+  }
+  if (permissionScope) {
+    action.permission_scope = permissionScope;
+  }
+  if (confirmationToken) {
+    action.confirmation_token = confirmationToken;
+  }
+  if (confirmationExpiresAt) {
+    action.confirmation_expires_at = confirmationExpiresAt;
+  }
+  if (idempotencyKey) {
+    action.idempotency_key = idempotencyKey;
+  }
+  if (uiBehavior) {
+    action.ui_behavior = uiBehavior;
+  }
+
+  return action;
+}
+
 export const fixtures = {
   loading: null,
   empty: {
@@ -56,7 +107,15 @@ export const fixtures = {
           tone: "informational",
         },
       ],
-      actions: [{ action_id: "refine-empty", label: "Refine search", action_type: "request_refinement" }],
+      actions: [
+        makeAction({
+          actionId: "refine-empty",
+          label: "Refine search",
+          actionType: "request_refinement",
+          resourceType: "analytics",
+          resourceId: "empty-query",
+        }),
+      ],
     }),
   },
   metrics: {
@@ -79,7 +138,15 @@ export const fixtures = {
           ],
         },
       ],
-      actions: [{ action_id: "details-metrics", label: "Open details", action_type: "open_details" }],
+      actions: [
+        makeAction({
+          actionId: "details-metrics",
+          label: "Open details",
+          actionType: "open_details",
+          resourceType: "analytics",
+          resourceId: "memphis-ltl-metrics",
+        }),
+      ],
     }),
   },
   table: {
@@ -107,7 +174,15 @@ export const fixtures = {
           ],
         },
       ],
-      actions: [{ action_id: "refine-table", label: "Refine search", action_type: "request_refinement" }],
+      actions: [
+        makeAction({
+          actionId: "refine-table",
+          label: "Refine search",
+          actionType: "request_refinement",
+          resourceType: "analytics",
+          resourceId: "carrier-ranking",
+        }),
+      ],
     }),
   },
   timeline: {
@@ -142,7 +217,15 @@ export const fixtures = {
           ],
         },
       ],
-      actions: [{ action_id: "details-timeline", label: "Open details", action_type: "open_details" }],
+      actions: [
+        makeAction({
+          actionId: "details-timeline",
+          label: "Open details",
+          actionType: "open_details",
+          resourceType: "shipment",
+          resourceId: "44128",
+        }),
+      ],
     }),
   },
   confirm: {
@@ -170,8 +253,31 @@ export const fixtures = {
         },
       ],
       actions: [
-        { action_id: "confirm-booking", label: "Confirm booking", action_type: "confirm_booking" },
-        { action_id: "cancel-booking", label: "Cancel", action_type: "cancel_booking" },
+        makeAction({
+          actionId: "confirm-booking",
+          label: "Confirm booking",
+          actionType: "confirm_booking",
+          resourceType: "shipment",
+          resourceId: "88219",
+          requiresConfirmation: true,
+          serverEndpoint: { method: "POST", path: "/shipments/88219/book" },
+          permissionScope: { office_id: "memphis", role: "broker", broker_id: "broker-123" },
+          confirmationToken: "memphis-booking-token",
+          confirmationExpiresAt: "2026-03-15T23:59:00Z",
+          idempotencyKey: "book-88219-arrow-freight-2026-03-15-v1",
+          uiBehavior: {
+            success_mode: "sync_chat_and_screen",
+            failure_mode: "stay_in_confirmation",
+            post_success_refresh: ["shipment_detail", "dispatch_board"],
+          },
+        }),
+        makeAction({
+          actionId: "cancel-booking",
+          label: "Cancel",
+          actionType: "cancel_booking",
+          resourceType: "shipment",
+          resourceId: "88219",
+        }),
       ],
     }),
   },
@@ -260,6 +366,27 @@ export function getStaleConfirmationNotice(expiresAt) {
   };
 }
 
+export function getActionInteractivity(action, { confirmationExpired = false } = {}) {
+  if (confirmationExpired) {
+    return {
+      disabled: true,
+      reason: getStaleConfirmationNotice(action.confirmation_expires_at).body,
+    };
+  }
+
+  if (action.enabled === false) {
+    return {
+      disabled: true,
+      reason: action.disabled_reason ?? "Action disabled by the server.",
+    };
+  }
+
+  return {
+    disabled: false,
+    reason: null,
+  };
+}
+
 function buildSubmittedResponse(response, confirmationCard) {
   const quoteField = confirmationCard.fields.find((field) => field.key === "quote_id");
 
@@ -282,9 +409,25 @@ function buildSubmittedResponse(response, confirmationCard) {
 }
 
 export function buildActionResult({ action, response, referenceTime }) {
-  if (action.action_type === "confirm_booking") {
-    const confirmationCard = getConfirmationCard(response);
+  const confirmationCard = getConfirmationCard(response);
+  const actionExpiry = action.confirmation_expires_at ?? confirmationCard?.expires_at ?? null;
+  const actionState = getActionInteractivity(action, {
+    confirmationExpired: Boolean(actionExpiry) && isExpired(actionExpiry, referenceTime),
+  });
 
+  if (actionState.disabled) {
+    return {
+      nextResponse: response,
+      actionNotice: {
+        component_id: `msg-action-disabled-${action.action_id}`,
+        component_type: "message_block",
+        body: actionState.reason,
+        tone: "warning",
+      },
+    };
+  }
+
+  if (action.action_type === "confirm_booking") {
     if (!confirmationCard) {
       return {
         nextResponse: response,
@@ -297,12 +440,26 @@ export function buildActionResult({ action, response, referenceTime }) {
       };
     }
 
-    if (isExpired(confirmationCard.expires_at, referenceTime)) {
+    if (!action.idempotency_key) {
       return {
         nextResponse: response,
         actionNotice: {
-          ...getStaleConfirmationNotice(confirmationCard.expires_at),
-          component_id: "msg-action-confirm-expired",
+          component_id: "msg-action-confirm-idempotency-missing",
+          component_type: "message_block",
+          body: "Idempotency key missing. Refresh booking context before any write execution.",
+          tone: "warning",
+        },
+      };
+    }
+
+    if (!action.confirmation_token || action.confirmation_token !== confirmationCard.confirmation_token) {
+      return {
+        nextResponse: response,
+        actionNotice: {
+          component_id: "msg-action-confirm-token-mismatch",
+          component_type: "message_block",
+          body: "Confirmation token mismatch. Refresh booking context before any write execution.",
+          tone: "warning",
         },
       };
     }
