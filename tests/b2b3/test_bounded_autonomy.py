@@ -271,6 +271,117 @@ class BoundedAutonomyTests(unittest.TestCase):
         # Should complete based on autonomy execution
         self.assertEqual(poll_data["status"], "succeeded")
 
+    def test_completed_result_includes_autonomy_audit_fields(self) -> None:
+        """Completed result.audit includes autonomy audit fields."""
+        os.environ["MERIDIAN_RUNNING_AUTONOMY_ENABLED"] = "true"
+        os.environ["MERIDIAN_RUNNING_AUTONOMY_MAX_STEPS"] = "3"
+        os.environ["MERIDIAN_CONTROLLER_CHECKPOINTS_ENABLED"] = "true"
+        os.environ["MERIDIAN_CONTROLLER_PRECEDENCE_ENABLED"] = "true"
+
+        client = TestClient(create_app())
+
+        response = client.post(
+            "/chat",
+            json=self._make_chat_request(
+                prompt="Run a background analytics refresh for Memphis exceptions.",
+            ),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        job_id = payload["job_id"]
+        poll_token = payload["job_poll_token"]
+
+        # Verify autonomy audit fields in pending response
+        self.assertIn("audit", payload)
+        self.assertIn("autonomy_mode", payload["audit"])
+        self.assertEqual(payload["audit"]["autonomy_mode"], "poll_driven")
+        self.assertEqual(payload["audit"]["autonomy_task_kind"], "async_read_refresh")
+        self.assertIn("autonomy_run_id", payload["audit"])
+        self.assertIn("checkpoint_id", payload["audit"])
+
+        # Poll to complete the job
+        poll_response = client.get(
+            f"/jobs/{job_id}",
+            params=self._job_query(job_poll_token=poll_token),
+        )
+        self.assertEqual(poll_response.status_code, 200)
+        poll_data = poll_response.json()
+        self.assertEqual(poll_data["status"], "succeeded")
+
+        # CRITICAL: Verify autonomy audit fields in completed result
+        # This is the P1 #1 fix - audit fields must propagate to completed result
+        self.assertIn("result", poll_data)
+        result = poll_data["result"]
+        self.assertIn("audit", result)
+        result_audit = result["audit"]
+        self.assertIn("autonomy_mode", result_audit)
+        self.assertEqual(result_audit["autonomy_mode"], "poll_driven")
+        self.assertEqual(result_audit["autonomy_task_kind"], "async_read_refresh")
+        self.assertIn("autonomy_run_id", result_audit)
+        self.assertEqual(result_audit["autonomy_run_id"], job_id)
+        self.assertIn("checkpoint_id", result_audit)
+
+    def test_stale_metadata_does_not_corrupt_checkpoint_authoritative_resume(self) -> None:
+        """Checkpoint truth overrides stale/corrupted job metadata on resume.
+
+        This test directly mutates stored autonomy_metadata to simulate
+        corruption or stale state, verifying that checkpoint is the
+        source of truth for step decisions.
+        """
+        os.environ["MERIDIAN_RUNNING_AUTONOMY_ENABLED"] = "true"
+        os.environ["MERIDIAN_RUNNING_AUTONOMY_MAX_STEPS"] = "3"
+        os.environ["MERIDIAN_CONTROLLER_CHECKPOINTS_ENABLED"] = "true"
+        os.environ["MERIDIAN_CONTROLLER_PRECEDENCE_ENABLED"] = "true"
+
+        client = TestClient(create_app())
+
+        response = client.post(
+            "/chat",
+            json=self._make_chat_request(
+                prompt="Run a background analytics refresh for Memphis exceptions.",
+            ),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        job_id = payload["job_id"]
+        poll_token = payload["job_poll_token"]
+
+        checkpoint_path = self._checkpoint_path_for_job(job_id)
+        if not checkpoint_path.exists():
+            self.skipTest("Autonomy not yet implemented - checkpoint seeding not working")
+
+        # CORRUPTION: Directly mutate the stored autonomy_metadata to simulate
+        # a stale/corrupted state where step_index exceeds budget
+        # This simulates the "stale metadata" bug where metadata gets out of sync
+        from backend.app.jobs.store import InMemoryJobStore
+        from backend.app.config import load_config
+        config = load_config()
+        store = InMemoryJobStore(database_url=f"sqlite:///{self._temp_dir.name}/state.sqlite3")
+
+        # Mutate metadata to have step_index=3 (at budget) even though checkpoint is at seed
+        job = store.get_job(job_id)
+        if job and job.autonomy_metadata:
+            corrupted_metadata = dict(job.autonomy_metadata)
+            corrupted_metadata["step_index"] = 3  # At budget, should fail if metadata is used
+            store.update_autonomy_metadata(job_id, corrupted_metadata)
+
+        # Poll the job - if it uses metadata (wrong), it will fail with "Step budget exhausted"
+        # If it uses checkpoint (correct), it will succeed because checkpoint is at seed (step 0)
+        poll_response = client.get(
+            f"/jobs/{job_id}",
+            params=self._job_query(job_poll_token=poll_token),
+        )
+        self.assertEqual(poll_response.status_code, 200)
+        poll_data = poll_response.json()
+
+        # Checkpoint-authoritative: should succeed because checkpoint is at seed
+        # even though corrupted metadata says step_index=3
+        self.assertEqual(
+            poll_data["status"],
+            "succeeded",
+            "Job should succeed using checkpoint truth despite stale metadata",
+        )
+
     def test_exhausted_step_budget_returns_fail_soft_terminal_result(self) -> None:
         """Exhausted step budget returns a fail-soft terminal job result."""
         os.environ["MERIDIAN_RUNNING_AUTONOMY_ENABLED"] = "true"

@@ -246,6 +246,7 @@ def _build_read_result_payload(
     stale_binding: bool,
     identity: TrustedIdentity,
     job_id: str | None = None,
+    autonomy_audit: dict[str, object] | None = None,
 ) -> dict[str, object]:
     read_result = _read_result_for_request(
         request_payload,
@@ -262,13 +263,37 @@ def _build_read_result_payload(
         tool_path=[str(read_result["tool_name"])],
         denial_reason_class=str(read_result.get("denial_reason_class", "none")),
         job_id=job_id,
+        autonomy_audit=autonomy_audit,
     )
+
+
+def _issue_confirmation_grants(
+    *,
+    components: list[dict[str, object]],
+    session_id: str,
+    response_id: str,
+    grant_store,
+) -> None:
+    """Issue session-bound confirmation grants for any confirmation_card components.
+
+    P1 fix: Ensures confirmation tokens can only be used by the session that received them.
+    """
+    for component in components:
+        if component.get("component_type") == "confirmation_card":
+            confirmation_token = component.get("confirmation_token")
+            if confirmation_token and isinstance(confirmation_token, str):
+                grant_store.issue_grant(
+                    confirmation_token=confirmation_token,
+                    session_id=session_id,
+                    response_id=response_id,
+                )
 
 
 @router.post("/chat", response_model=ChatResponseEnvelope)
 def post_chat(request_payload: ChatRequest, request: Request) -> ChatResponseEnvelope:
     session_store = request.app.state.session_store
     job_store = request.app.state.job_store
+    grant_store = request.app.state.confirmation_grant_store
     autonomy_service = request.app.state.autonomy_service
     identity = _trusted_chat_identity(request)
     session, stale_binding = _session_state_for_request(request_payload, request, identity)
@@ -285,7 +310,7 @@ def post_chat(request_payload: ChatRequest, request: Request) -> ChatResponseEnv
         )
 
         # Seed autonomy if enabled and eligible
-        autonomy_seeded = False
+        autonomy_audit = None
         if autonomy_service.is_eligible_for_autonomy(
             prompt=request_payload.prompt,
             is_async_refresh=is_async_eligible,
@@ -300,7 +325,14 @@ def post_chat(request_payload: ChatRequest, request: Request) -> ChatResponseEnv
             if seed_result is not None:
                 metadata, _checkpoint = seed_result
                 job_store.update_autonomy_metadata(job.job_id, metadata.to_dict())
-                autonomy_seeded = True
+                # Build autonomy audit fields BEFORE prepare_result
+                # so they persist into the completed result
+                autonomy_audit = {
+                    "autonomy_mode": "poll_driven",
+                    "autonomy_task_kind": "async_read_refresh",
+                    "autonomy_run_id": job.job_id,
+                    "checkpoint_id": f"{job.job_id}:seed",
+                }
 
         job_store.prepare_result(
             job.job_id,
@@ -311,21 +343,12 @@ def post_chat(request_payload: ChatRequest, request: Request) -> ChatResponseEnv
                     stale_binding=stale_binding,
                     identity=identity,
                     job_id=job.job_id,
+                    autonomy_audit=autonomy_audit,
                 )
             ),
         )
         pending_session = replace(pending_session, last_job_id=job.job_id)
         session_store.save_session(pending_session)
-
-        # Build autonomy audit fields if autonomy was seeded
-        autonomy_audit = None
-        if autonomy_seeded:
-            autonomy_audit = {
-                "autonomy_mode": "poll_driven",
-                "autonomy_task_kind": "async_read_refresh",
-                "autonomy_run_id": job.job_id,
-                "checkpoint_id": f"{job.job_id}:seed",
-            }
 
         payload = _base_payload(
             session=pending_session,
@@ -355,6 +378,15 @@ def post_chat(request_payload: ChatRequest, request: Request) -> ChatResponseEnv
         )
 
     built_payload = build_response_envelope(payload)
+
+    # Issue session-bound confirmation grants for any confirmation_card components
+    _issue_confirmation_grants(
+        components=built_payload.get("components", []),
+        session_id=session.session_id,
+        response_id=str(built_payload["response_id"]),
+        grant_store=grant_store,
+    )
+
     if built_payload.get("job_id"):
         job_store.bind_pending_response(
             str(built_payload["job_id"]),

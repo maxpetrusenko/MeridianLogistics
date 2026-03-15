@@ -233,7 +233,7 @@ When `MERIDIAN_RUNNING_AUTONOMY_ENABLED=true` (together with controller checkpoi
 | `MERIDIAN_CONTROLLER_CHECKPOINTS_ENABLED` | `false` | Required for checkpoint persistence |
 | `MERIDIAN_CONTROLLER_PRECEDENCE_ENABLED` | `false` | Required for checkpoint truth |
 | `MERIDIAN_RUNNING_AUTONOMY_MAX_STEPS` | `3` | Maximum steps per autonomy run |
-| `MERIDIAN_RUNNING_AUTONOMY_POLL_STEP_TIMEOUT_SECONDS` | `5` | Per-step wall-clock timeout |
+| `MERIDIAN_RUNNING_AUTONOMY_POLL_STEP_TIMEOUT_SECONDS` | `5` | *(Phase 2)* Per-step wall-clock timeout enforcement |
 
 ### Allowed Steps (Phase 1)
 

@@ -48,9 +48,24 @@ class BoundedAutonomyService:
     - Checkpoint-authoritative (job metadata is derivative cache)
     """
 
+    # Phase 1: simple mapping from resume_point to step_index
+    # Future: track step_index in checkpoint compaction state
+    _RESUME_POINT_TO_STEP: dict[str, int] = {
+        "seed": 0,
+        "complete": 1,
+        "done": 1,
+        "blocked": 1,
+        "failed": 1,
+    }
+
     def __init__(self, config: AppConfig):
         self.config = config
         self.controller = ControllerRuntime(config)
+
+    def _step_index_from_checkpoint(self, checkpoint: ControllerCheckpoint) -> int:
+        """Derive step_index from checkpoint state (checkpoint-authoritative)."""
+        resume_point = checkpoint.protected_core.resume_point
+        return self._RESUME_POINT_TO_STEP.get(resume_point, 0)
 
     def is_enabled(self) -> bool:
         """Check if running-app autonomy is enabled."""
@@ -204,15 +219,6 @@ class BoundedAutonomyService:
                 error_message="Autonomy not enabled",
             )
 
-        # Check step budget
-        if current_metadata.step_index >= current_metadata.step_budget:
-            return StepOutcome(
-                step_kind=StepKind.FAIL_JOB,
-                next_step_kind=None,
-                is_terminal=True,
-                error_message="Step budget exhausted",
-            )
-
         # Load checkpoint truth using job_id (not session_id)
         checkpoint = self.load_checkpoint(job_id)
 
@@ -222,6 +228,18 @@ class BoundedAutonomyService:
                 next_step_kind=None,
                 is_terminal=True,
                 error_message="Checkpoint missing",
+            )
+
+        # Checkpoint-authoritative: derive step_index from checkpoint state
+        checkpoint_step_index = self._step_index_from_checkpoint(checkpoint)
+
+        # Check step budget using checkpoint-derived step (not metadata)
+        if checkpoint_step_index >= current_metadata.step_budget:
+            return StepOutcome(
+                step_kind=StepKind.FAIL_JOB,
+                next_step_kind=None,
+                is_terminal=True,
+                error_message="Step budget exhausted",
             )
 
         # If checkpoint is already terminal, respect it
@@ -235,10 +253,8 @@ class BoundedAutonomyService:
 
         # Phase 1: After seed, immediately complete on first poll
         # The read work was already prepared by the chat route
-        # We just signal completion on the first autonomy step
-        step_index = current_metadata.step_index
-
-        if step_index == 0:
+        # Checkpoint-authoritative: use checkpoint state, not metadata
+        if checkpoint_step_index == 0:
             # First autonomy step - the work is already done, just complete
             return StepOutcome(
                 step_kind=StepKind.EXECUTE_ALLOWLISTED_READ,
@@ -263,7 +279,8 @@ class BoundedAutonomyService:
     ) -> tuple[AutonomyJobMetadata, StepOutcome]:
         """Advance one step and return updated metadata + outcome.
 
-        Updates checkpoint if needed for resume truth.
+        Checkpoint-authoritative: derives step_index from checkpoint state.
+        Updates checkpoint when step completes.
         """
         outcome = self.resume_one_step(
             job_id=job_id,
@@ -271,15 +288,36 @@ class BoundedAutonomyService:
             current_metadata=current_metadata,
         )
 
-        # Update metadata for next step
+        # Load checkpoint to derive next step_index
+        checkpoint = self.load_checkpoint(job_id)
+        checkpoint_step = self._step_index_from_checkpoint(checkpoint) if checkpoint else 0
+
+        # Checkpoint-authoritative: metadata is derived from checkpoint state
         new_metadata = AutonomyJobMetadata(
             mode=current_metadata.mode,
             task_kind=current_metadata.task_kind,
             checkpoint_id=current_metadata.checkpoint_id,
-            step_index=current_metadata.step_index + 1,
+            # Derive from checkpoint, not metadata (handles stale metadata case)
+            step_index=checkpoint_step + 1,
             step_budget=current_metadata.step_budget,
             last_controller_action=outcome.step_kind.value,
         )
+
+        # Update checkpoint to reflect new state for resume truth
+        if checkpoint is not None and outcome.is_terminal and not outcome.error_message:
+            # Mark checkpoint as terminal on successful completion
+            from dataclasses import replace
+
+            terminal_checkpoint = replace(
+                checkpoint,
+                terminal_state="DONE",
+                protected_core=replace(
+                    checkpoint.protected_core,
+                    resume_point="complete",
+                    current_step="complete_job",
+                ),
+            )
+            self._write_checkpoint(job_id, terminal_checkpoint)
 
         return new_metadata, outcome
 
