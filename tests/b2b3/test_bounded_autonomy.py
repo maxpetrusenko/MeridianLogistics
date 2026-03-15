@@ -190,6 +190,10 @@ class BoundedAutonomyTests(unittest.TestCase):
         job_id = payload["job_id"]
         poll_token = payload["job_poll_token"]
 
+        checkpoint_path = self._checkpoint_path_for_job(job_id)
+        if not checkpoint_path.exists():
+            self.fail("Checkpoint should exist - autonomy not implemented yet")
+
         # First poll: should advance to step 1, job still running
         first_poll = client.get(
             f"/jobs/{job_id}",
@@ -200,7 +204,6 @@ class BoundedAutonomyTests(unittest.TestCase):
         self.assertEqual(first_data["status"], "running")
 
         # Check step index in checkpoint
-        checkpoint_path = self._checkpoint_path_for_job(job_id)
         checkpoint = ControllerCheckpoint.from_dict(json.loads(checkpoint_path.read_text()))
         self.assertEqual(checkpoint.queue.status, "active")
         # Step should have advanced
@@ -274,6 +277,10 @@ class BoundedAutonomyTests(unittest.TestCase):
         payload = response.json()
         job_id = payload["job_id"]
         poll_token = payload["job_poll_token"]
+
+        checkpoint_path = self._checkpoint_path_for_job(job_id)
+        if not checkpoint_path.exists():
+            self.fail("Checkpoint should exist - autonomy not implemented yet")
 
         # First poll: use the only step, job should transition to terminal
         # If work isn't complete, should fail-soft
