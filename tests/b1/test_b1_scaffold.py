@@ -19,6 +19,7 @@ class B1ScaffoldTests(unittest.TestCase):
         context = load_database_context()
 
         self.assertTrue(hasattr(context, "seed_bundle_file"))
+        self.assertTrue(hasattr(context, "direct_database_url"))
 
     def test_schema_defines_memphis_poc_tables(self) -> None:
         schema = SCHEMA_FILE.read_text()
@@ -31,6 +32,8 @@ class B1ScaffoldTests(unittest.TestCase):
             "CREATE TABLE shipments",
             "CREATE TABLE shipment_events",
             "CREATE TABLE booking_confirmations",
+            "CREATE TABLE generation_jobs",
+            "CREATE TABLE documents_manifest",
         ]
 
         for table in required_tables:
