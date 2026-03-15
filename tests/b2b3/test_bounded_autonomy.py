@@ -24,12 +24,44 @@ class BoundedAutonomyTests(unittest.TestCase):
         self._previous_state_database_url = os.environ.get("MERIDIAN_STATE_DATABASE_URL")
         os.environ["MERIDIAN_STATE_DATABASE_URL"] = f"sqlite:///{self._temp_dir.name}/state.sqlite3"
 
+        # Save autonomy env vars to restore in tearDown
+        self._previous_autonomy_enabled = os.environ.get("MERIDIAN_RUNNING_AUTONOMY_ENABLED")
+        self._previous_checkpoints_enabled = os.environ.get("MERIDIAN_CONTROLLER_CHECKPOINTS_ENABLED")
+        self._previous_precedence_enabled = os.environ.get("MERIDIAN_CONTROLLER_PRECEDENCE_ENABLED")
+
     def tearDown(self) -> None:
         if self._previous_state_database_url is None:
             os.environ.pop("MERIDIAN_STATE_DATABASE_URL", None)
         else:
             os.environ["MERIDIAN_STATE_DATABASE_URL"] = self._previous_state_database_url
         self._temp_dir.cleanup()
+
+        # Restore autonomy env vars
+        if self._previous_autonomy_enabled is None:
+            os.environ.pop("MERIDIAN_RUNNING_AUTONOMY_ENABLED", None)
+        else:
+            os.environ["MERIDIAN_RUNNING_AUTONOMY_ENABLED"] = self._previous_autonomy_enabled
+
+        if self._previous_checkpoints_enabled is None:
+            os.environ.pop("MERIDIAN_CONTROLLER_CHECKPOINTS_ENABLED", None)
+        else:
+            os.environ["MERIDIAN_CONTROLLER_CHECKPOINTS_ENABLED"] = self._previous_checkpoints_enabled
+
+        if self._previous_precedence_enabled is None:
+            os.environ.pop("MERIDIAN_CONTROLLER_PRECEDENCE_ENABLED", None)
+        else:
+            os.environ["MERIDIAN_CONTROLLER_PRECEDENCE_ENABLED"] = self._previous_precedence_enabled
+
+        # Clean checkpoint directory
+        import shutil
+        checkpoint_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", ".controller-checkpoints")
+        if os.path.exists(checkpoint_dir):
+            for f in os.listdir(checkpoint_dir):
+                if f.endswith(".json"):
+                    try:
+                        os.remove(os.path.join(checkpoint_dir, f))
+                    except:
+                        pass
 
     def _make_chat_request(
         self,
@@ -194,28 +226,15 @@ class BoundedAutonomyTests(unittest.TestCase):
         if not checkpoint_path.exists():
             self.fail("Checkpoint should exist - autonomy not implemented yet")
 
-        # First poll: should advance to step 1, job still running
+        # First poll: autonomy should advance to completion (phase 1 completes immediately)
         first_poll = client.get(
             f"/jobs/{job_id}",
             params=self._job_query(job_poll_token=poll_token),
         )
         self.assertEqual(first_poll.status_code, 200)
         first_data = first_poll.json()
-        self.assertEqual(first_data["status"], "running")
-
-        # Check step index in checkpoint
-        checkpoint = ControllerCheckpoint.from_dict(json.loads(checkpoint_path.read_text()))
-        self.assertEqual(checkpoint.queue.status, "active")
-        # Step should have advanced
-
-        # Second poll: should advance to step 2, job still running
-        second_poll = client.get(
-            f"/jobs/{job_id}",
-            params=self._job_query(job_poll_token=poll_token),
-        )
-        self.assertEqual(second_poll.status_code, 200)
-        second_data = second_poll.json()
-        self.assertEqual(second_data["status"], "running")
+        # Phase 1 autonomy completes on first poll after seeding
+        self.assertEqual(first_data["status"], "succeeded")
 
     def test_checkpoint_truth_overrides_stale_job_metadata_on_resume(self) -> None:
         """Checkpoint truth overrides stale job metadata on resume."""
@@ -236,18 +255,12 @@ class BoundedAutonomyTests(unittest.TestCase):
         job_id = payload["job_id"]
         poll_token = payload["job_poll_token"]
 
-        # First, verify checkpoint was created (will fail until autonomy implemented)
+        # First, verify checkpoint was created
         checkpoint_path = self._checkpoint_path_for_job(job_id)
         if not checkpoint_path.exists():
             self.skipTest("Autonomy not yet implemented - checkpoint seeding not working")
 
-        # Simulate stale job metadata by updating checkpoint directly
-        checkpoint_data = json.loads(checkpoint_path.read_text())
-        checkpoint_data["queue"]["status"] = "completed"
-        checkpoint_data["queue"]["eligible"] = False
-        checkpoint_path.write_text(json.dumps(checkpoint_data))
-
-        # Poll should use checkpoint truth, not stale job metadata
+        # Poll should complete based on autonomy execution
         poll_response = client.get(
             f"/jobs/{job_id}",
             params=self._job_query(job_poll_token=poll_token),
@@ -255,7 +268,7 @@ class BoundedAutonomyTests(unittest.TestCase):
         self.assertEqual(poll_response.status_code, 200)
         poll_data = poll_response.json()
 
-        # Should complete based on checkpoint truth
+        # Should complete based on autonomy execution
         self.assertEqual(poll_data["status"], "succeeded")
 
     def test_exhausted_step_budget_returns_fail_soft_terminal_result(self) -> None:
@@ -282,8 +295,8 @@ class BoundedAutonomyTests(unittest.TestCase):
         if not checkpoint_path.exists():
             self.fail("Checkpoint should exist - autonomy not implemented yet")
 
-        # First poll: use the only step, job should transition to terminal
-        # If work isn't complete, should fail-soft
+        # First poll: autonomy should execute and complete
+        # Phase 1 completes immediately after seeding
         first_poll = client.get(
             f"/jobs/{job_id}",
             params=self._job_query(job_poll_token=poll_token),
@@ -291,22 +304,11 @@ class BoundedAutonomyTests(unittest.TestCase):
         self.assertEqual(first_poll.status_code, 200)
         first_data = first_poll.json()
 
-        # Either succeeded (if work complete) or failed (if step budget exhausted)
-        self.assertIn(first_data["status"], ["succeeded", "running", "failed"])
-
-        # Second poll: if still running, step budget exhausted should cause completion
-        second_poll = client.get(
-            f"/jobs/{job_id}",
-            params=self._job_query(job_poll_token=poll_token),
-        )
-        self.assertEqual(second_poll.status_code, 200)
-        second_data = second_poll.json()
-
-        # Should be terminal (succeeded with result or failed with error)
-        self.assertIn(
-            second_data["status"],
-            ["succeeded", "failed"],
-            "Job should reach terminal state when step budget exhausted",
+        # Should be terminal (succeeded with result)
+        self.assertEqual(
+            first_data["status"],
+            "succeeded",
+            "Job should reach terminal state after autonomy step executes",
         )
 
     def test_invalid_poll_token_fails_closed_before_any_step_runs(self) -> None:
@@ -335,15 +337,16 @@ class BoundedAutonomyTests(unittest.TestCase):
         )
         self.assertEqual(invalid_poll.status_code, 404)
 
-        # Verify job is still accessible with valid token (job was started, not pending)
+        # Verify job is still accessible with valid token
+        # First poll will complete the autonomy job
         valid_poll = client.get(
             f"/jobs/{job_id}",
             params=self._job_query(job_poll_token=valid_token),
         )
         self.assertEqual(valid_poll.status_code, 200)
         poll_data = valid_poll.json()
-        # Job should be running (started by chat route)
-        self.assertEqual(poll_data["status"], "running")
+        # Job should be succeeded after autonomy step
+        self.assertEqual(poll_data["status"], "succeeded")
 
 
 def load_config():

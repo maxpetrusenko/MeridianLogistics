@@ -580,22 +580,39 @@ class InMemoryJobStore:
         self,
         job_id: str,
         autonomy_metadata: dict[str, object],
+        *,
+        trigger_completion: bool = False,
     ) -> JobState | None:
-        """Update autonomy metadata for a job."""
+        """Update autonomy metadata for a job.
+
+        If trigger_completion is True, sets completion_refreshes_remaining to 0
+        so the next refresh will immediately materialize the prepared result.
+        """
         job = self.get_job(job_id)
         if job is None:
             return None
 
         now = _utc_now()
         with self._lock:
-            execute_query(
-                self._connection,
-                """
-                UPDATE generation_jobs
-                SET autonomy_metadata = ?, updated_at = ?
-                WHERE job_id = ?
-                """,
-                (json.dumps(autonomy_metadata), now, job_id),
-            )
+            if trigger_completion:
+                execute_query(
+                    self._connection,
+                    """
+                    UPDATE generation_jobs
+                    SET autonomy_metadata = ?, updated_at = ?, completion_refreshes_remaining = 0
+                    WHERE job_id = ?
+                    """,
+                    (json.dumps(autonomy_metadata), now, job_id),
+                )
+            else:
+                execute_query(
+                    self._connection,
+                    """
+                    UPDATE generation_jobs
+                    SET autonomy_metadata = ?, updated_at = ?
+                    WHERE job_id = ?
+                    """,
+                    (json.dumps(autonomy_metadata), now, job_id),
+                )
             self._connection.commit()
         return self.get_job(job_id)

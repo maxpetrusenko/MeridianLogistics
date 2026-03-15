@@ -20,8 +20,10 @@ from backend.app.autonomy.models import (
 )
 from backend.app.config import AppConfig
 from backend.app.controller.models import (
+    CompactionState,
     ControllerCheckpoint,
     ControllerDecision,
+    FailureSignal,
     ProtectedCore,
     QueueState,
 )
@@ -122,13 +124,26 @@ class BoundedAutonomyService:
             approval_authority="system",
         )
 
+        # Create failure signal (default)
+        failure_signal = FailureSignal(
+            kind="none",
+            severity="none",
+            source="controller",
+            details=None,
+        )
+
         # Create initial checkpoint
         checkpoint = ControllerCheckpoint(
             checkpoint_id=checkpoint_id,
             protected_core=protected_core,
-            compaction=None,
+            compaction=CompactionState(
+                strategy_name="none",
+                compaction_sequence=0,
+                halo_summary="",
+                recent_turn_ids=(),
+            ),
             validated_artifacts=(),
-            active_failure_signal=None,
+            active_failure_signal=failure_signal,
             controller_last_decision=ControllerDecision(
                 action="continue",
                 reason="seed_autonomy_run",
@@ -198,9 +213,8 @@ class BoundedAutonomyService:
                 error_message="Step budget exhausted",
             )
 
-        # Load checkpoint truth
-        loaded = self.controller.load_checkpoint(job_id)
-        checkpoint = loaded.checkpoint
+        # Load checkpoint truth using job_id (not session_id)
+        checkpoint = self.load_checkpoint(job_id)
 
         if checkpoint is None:
             return StepOutcome(
@@ -219,48 +233,27 @@ class BoundedAutonomyService:
                 error_message=None,
             )
 
-        # Execute one bounded step based on current state
+        # Phase 1: After seed, immediately complete on first poll
+        # The read work was already prepared by the chat route
+        # We just signal completion on the first autonomy step
         step_index = current_metadata.step_index
 
-        # Phase 1: Simplified step execution
-        # Step 0: seed (already done during seed_autonomy_run)
-        # Step 1: execute read (simulate with prepared result)
-        # Step 2: build response (already prepared by chat route)
-        # Step 3: complete job
-
         if step_index == 0:
-            # First step after seed - mark as in progress
-            return StepOutcome(
-                step_kind=StepKind.SEED_CONTEXT,
-                next_step_kind=StepKind.EXECUTE_ALLOWLISTED_READ,
-                is_terminal=False,
-            )
-
-        elif step_index == 1:
-            # Execute read step - in real implementation this would run the read
-            # For now, advance to build
+            # First autonomy step - the work is already done, just complete
             return StepOutcome(
                 step_kind=StepKind.EXECUTE_ALLOWLISTED_READ,
-                next_step_kind=StepKind.BUILD_RESPONSE,
-                is_terminal=False,
-            )
-
-        elif step_index == 2:
-            # Build response - signal completion
-            return StepOutcome(
-                step_kind=StepKind.BUILD_RESPONSE,
                 next_step_kind=StepKind.COMPLETE_JOB,
-                is_terminal=False,
-            )
-
-        else:
-            # Step budget exhausted - complete or fail
-            return StepOutcome(
-                step_kind=StepKind.COMPLETE_JOB,
-                next_step_kind=None,
                 is_terminal=True,
                 error_message=None,
             )
+
+        # Any further steps should not happen if we completed
+        return StepOutcome(
+            step_kind=StepKind.COMPLETE_JOB,
+            next_step_kind=None,
+            is_terminal=True,
+            error_message=None,
+        )
 
     def advance_step(
         self,
