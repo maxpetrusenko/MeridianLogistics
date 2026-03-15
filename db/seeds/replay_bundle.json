@@ -1,0 +1,783 @@
+{
+  "bundle_id": "memphis_replay_bundle_v1",
+  "contract_version": "0.1.0",
+  "generated_at": "2026-03-15T14:00:00Z",
+  "description": "Memphis PoC replay fixture bundle covering 11 critical scenarios for read, stale-state, write replay, and async trace verification",
+  "cases": [
+    {
+      "scenario_id": "read_aggregation_broker",
+      "intent_class": "read_result",
+      "actor_role": "broker",
+      "prompt": "Average transit time for LTL Dallas to Chicago over the last 90 days.",
+      "expected_gate": "allow",
+      "expected_tool_path": [
+        "shipment_metrics_lookup"
+      ],
+      "expected_response_components": [
+        "metric_card"
+      ],
+      "assertions": [
+        "permission_context_applied",
+        "bounded_date_range",
+        "no_sensitive_fields",
+        "latency_under_budget"
+      ],
+      "captured_response": {
+        "contract_version": "0.1.0",
+        "response_id": "resp-aggr-001",
+        "request_id": "req-aggr-001",
+        "trace_id": "trace-aggr-001",
+        "session_id": "chat_s_20260315_0001",
+        "conversation_scope": "global",
+        "context_binding_state": "bound",
+        "screen_sync_state": "not_applicable",
+        "active_resource": null,
+        "intent_class": "read_result",
+        "status": "success",
+        "summary": "Average transit time for LTL Dallas to Chicago over the last 90 days is 2.4 days.",
+        "follow_up_prompt": null,
+        "components": [
+          {
+            "component_id": "metric-001",
+            "component_type": "metric_card",
+            "title": "Average Transit Time",
+            "metrics": [
+              {
+                "label": "Average Transit Time",
+                "value": 2.4,
+                "unit": "days"
+              },
+              {
+                "label": "Total Shipments",
+                "value": 1247,
+                "unit": "count"
+              },
+              {
+                "label": "Date Range",
+                "value": "90 days",
+                "unit": "duration"
+              }
+            ]
+          }
+        ],
+        "actions": [],
+        "policy": {
+          "permission_context_applied": true,
+          "sensitive_fields_redacted": true,
+          "write_confirmation_required": false,
+          "denial_reason_class": null
+        },
+        "audit": {
+          "actor_role": "broker",
+          "office_scope": "memphis",
+          "tool_path": [
+            "shipment_metrics_lookup"
+          ],
+          "response_generated_at": "2026-03-15T14:00:00Z"
+        }
+      },
+      "captured_latency_ms": 187
+    },
+    {
+      "scenario_id": "read_async_refresh_pending",
+      "intent_class": "read_pending",
+      "actor_role": "broker",
+      "prompt": "Refresh Memphis shipment exceptions in the background.",
+      "expected_gate": "allow",
+      "expected_tool_path": [],
+      "expected_response_components": [
+        "message_block"
+      ],
+      "assertions": [
+        "session_metadata_present",
+        "async_job_id_present",
+        "trace_linked_async_completion",
+        "no_write_executed"
+      ],
+      "captured_response": {
+        "contract_version": "0.1.0",
+        "response_id": "resp-async-001",
+        "request_id": "req-async-001",
+        "trace_id": "trace-async-001",
+        "session_id": "chat_s_20260315_0002",
+        "conversation_scope": "global",
+        "context_binding_state": "bound",
+        "screen_sync_state": "not_applicable",
+        "active_resource": null,
+        "job_id": "job_20260315_abc123def456",
+        "job_poll_token": "poll_token_async_abc123def456_secure",
+        "intent_class": "read_pending",
+        "status": "pending",
+        "summary": "Background refresh for Memphis shipment exceptions is queued.",
+        "follow_up_prompt": "Poll for updates using the job ID.",
+        "components": [
+          {
+            "component_id": "msg-async-001",
+            "component_type": "message_block",
+            "body": "Background refresh for Memphis shipment exceptions is queued. Job ID: job_20260315_abc123def456",
+            "tone": "informational"
+          }
+        ],
+        "actions": [],
+        "policy": {
+          "permission_context_applied": true,
+          "sensitive_fields_redacted": true,
+          "write_confirmation_required": false,
+          "denial_reason_class": null
+        },
+        "audit": {
+          "actor_role": "broker",
+          "office_scope": "memphis",
+          "tool_path": [],
+          "response_generated_at": "2026-03-15T14:01:00Z"
+        }
+      },
+      "captured_job": {
+        "job_id": "job_20260315_abc123def456",
+        "session_id": "chat_s_20260315_0002",
+        "broker_id": "broker-mem-001",
+        "office_id": "memphis",
+        "status": "succeeded",
+        "created_at": "2026-03-15T14:01:00Z",
+        "updated_at": "2026-03-15T14:01:20Z",
+        "completed_at": "2026-03-15T14:01:20Z",
+        "completed_response_id": "resp-async-001-complete",
+        "progress_message": "Background refresh complete.",
+        "retry_allowed": false,
+        "job_poll_token": "poll_token_async_abc123def456_secure",
+        "pending_response_id": "resp-async-001",
+        "result": {
+          "contract_version": "0.1.0",
+          "response_id": "resp-async-001-complete",
+          "request_id": "req-async-001",
+          "trace_id": "trace-async-001",
+          "job_id": "job_20260315_abc123def456",
+          "intent_class": "read_result",
+          "status": "success",
+          "summary": "Background refresh complete. Found 3 shipment exceptions.",
+          "components": [
+            {
+              "component_id": "table-async-result-001",
+              "component_type": "table",
+              "title": "Shipment Exceptions",
+              "columns": [
+                {"key": "shipment_id", "label": "Shipment", "data_type": "string"},
+                {"key": "exception_type", "label": "Exception", "data_type": "string"},
+                {"key": "eta_at", "label": "ETA", "data_type": "datetime"}
+              ],
+              "rows": [
+                ["ship-100", "insurance_expiring", "2026-03-18T17:00:00Z"],
+                ["ship-101", "delayed", "2026-03-19T09:00:00Z"],
+                ["ship-102", "insurance_expiring", "2026-03-20T14:00:00Z"]
+              ]
+            }
+          ],
+          "actions": [],
+          "policy": {
+            "permission_context_applied": true,
+            "sensitive_fields_redacted": true,
+            "write_confirmation_required": false,
+            "denial_reason_class": null
+          },
+          "audit": {
+            "actor_role": "broker",
+            "office_scope": "memphis",
+            "tool_path": ["shipment_exception_lookup"],
+            "response_generated_at": "2026-03-15T14:01:20.000Z"
+          }
+        }
+      }
+    },
+    {
+      "scenario_id": "read_stale_binding_broker",
+      "intent_class": "read_result",
+      "actor_role": "broker",
+      "prompt": "Switch from shipment 88219 to shipment 99117.",
+      "expected_gate": "allow",
+      "expected_tool_path": [
+        "shipment_exception_lookup"
+      ],
+      "expected_response_components": [
+        "message_block"
+      ],
+      "assertions": [
+        "stale_binding_emitted",
+        "session_metadata_present",
+        "latency_under_budget"
+      ],
+      "captured_response": {
+        "contract_version": "0.1.0",
+        "response_id": "resp-stale-001",
+        "request_id": "req-stale-001",
+        "trace_id": "trace-stale-001",
+        "session_id": "chat_s_20260315_0003",
+        "conversation_scope": "global",
+        "context_binding_state": "stale",
+        "screen_sync_state": "not_applicable",
+        "active_resource": {
+          "resource_type": "shipment",
+          "resource_id": "99117",
+          "resource_fingerprint": "shipment:99117:v2"
+        },
+        "intent_class": "read_result",
+        "status": "success",
+        "summary": "Switched to shipment 99117. Note: previous shipment 88219 context is now stale.",
+        "follow_up_prompt": "Confirm to switch active resource.",
+        "components": [
+          {
+            "component_id": "msg-stale-001",
+            "component_type": "message_block",
+            "body": "Your active resource binding is stale. Previous context was for shipment 88219. Switched to shipment 99117.",
+            "tone": "warning"
+          }
+        ],
+        "actions": [
+          {
+            "action_id": "act-refresh-88219",
+            "label": "Refresh Shipment 88219",
+            "action_type": "open_details",
+            "resource_type": "shipment",
+            "resource_id": "88219",
+            "surface": "chat",
+            "requires_confirmation": false,
+            "enabled": true,
+            "disabled_reason": null
+          }
+        ],
+        "policy": {
+          "permission_context_applied": true,
+          "sensitive_fields_redacted": true,
+          "write_confirmation_required": false,
+          "denial_reason_class": "stale_state"
+        },
+        "audit": {
+          "actor_role": "broker",
+          "office_scope": "memphis",
+          "tool_path": [
+            "shipment_exception_lookup"
+          ],
+          "response_generated_at": "2026-03-15T14:02:00Z"
+        }
+      },
+      "captured_latency_ms": 98
+    },
+    {
+      "scenario_id": "read_ranking_broker",
+      "intent_class": "read_result",
+      "actor_role": "broker",
+      "prompt": "Top 5 carriers by on-time rate for FTL shipments over 20,000 pounds in the Southeast.",
+      "expected_gate": "allow",
+      "expected_tool_path": [
+        "carrier_ranking_lookup"
+      ],
+      "expected_response_components": [
+        "table"
+      ],
+      "assertions": [
+        "bounded_limit",
+        "no_sensitive_fields",
+        "office_scope_enforced"
+      ],
+      "captured_response": {
+        "contract_version": "0.1.0",
+        "response_id": "resp-rank-001",
+        "request_id": "req-rank-001",
+        "trace_id": "trace-rank-001",
+        "session_id": "chat_s_20260315_0004",
+        "conversation_scope": "global",
+        "context_binding_state": "bound",
+        "screen_sync_state": "not_applicable",
+        "active_resource": null,
+        "intent_class": "read_result",
+        "status": "success",
+        "summary": "Top 5 carriers by on-time rate for FTL shipments over 20,000 pounds in the Southeast.",
+        "follow_up_prompt": null,
+        "components": [
+          {
+            "component_id": "table-rank-001",
+            "component_type": "table",
+            "title": "Top FTL Carriers by On-Time Rate",
+            "columns": [
+              {"key": "carrier_name", "label": "Carrier", "data_type": "string"},
+              {"key": "on_time_rate", "label": "On-Time Rate", "data_type": "string"},
+              {"key": "total_shipments", "label": "Total Shipments", "data_type": "number"},
+              {"key": "avg_transit_time", "label": "Avg Transit Time", "data_type": "string"}
+            ],
+            "rows": [
+              ["Acme Freight", "97.2%", 843, "2.8 days"],
+              ["Southern Express", "94.5%", 621, "3.1 days"],
+              ["Delta Logistics", "92.1%", 445, "2.9 days"],
+              ["FreightWay", "89.8%", 312, "3.3 days"],
+              ["QuickShip", "87.3%", 267, "3.5 days"]
+            ]
+          }
+        ],
+        "actions": [],
+        "policy": {
+          "permission_context_applied": true,
+          "sensitive_fields_redacted": true,
+          "write_confirmation_required": false,
+          "denial_reason_class": null
+        },
+        "audit": {
+          "actor_role": "broker",
+          "office_scope": "memphis",
+          "tool_path": [
+            "carrier_ranking_lookup"
+          ],
+          "response_generated_at": "2026-03-15T14:03:00Z"
+        }
+      },
+      "captured_latency_ms": 245
+    },
+    {
+      "scenario_id": "read_multi_table_broker",
+      "intent_class": "read_result",
+      "actor_role": "broker",
+      "prompt": "Show in-transit shipments with insurance expiring in the next 30 days.",
+      "expected_gate": "allow",
+      "expected_tool_path": [
+        "shipment_exception_lookup"
+      ],
+      "expected_response_components": [
+        "table"
+      ],
+      "assertions": [
+        "office_scope_enforced",
+        "no_cross_office_records",
+        "no_sensitive_fields"
+      ],
+      "captured_response": {
+        "contract_version": "0.1.0",
+        "response_id": "resp-multi-001",
+        "request_id": "req-multi-001",
+        "trace_id": "trace-multi-001",
+        "session_id": "chat_s_20260315_0005",
+        "conversation_scope": "global",
+        "context_binding_state": "bound",
+        "screen_sync_state": "not_applicable",
+        "active_resource": null,
+        "intent_class": "read_result",
+        "status": "success",
+        "summary": "Found 3 in-transit shipments with insurance expiring in the next 30 days.",
+        "follow_up_prompt": null,
+        "components": [
+          {
+            "component_id": "table-multi-001",
+            "component_type": "table",
+            "title": "In-Transit Shipments with Expiring Insurance",
+            "columns": [
+              {"key": "shipment_id", "label": "Shipment", "data_type": "string"},
+              {"key": "origin", "label": "Origin", "data_type": "string"},
+              {"key": "destination", "label": "Destination", "data_type": "string"},
+              {"key": "insurance_expires", "label": "Insurance Expires", "data_type": "date"},
+              {"key": "days_until_expiry", "label": "Days Until Expiry", "data_type": "number"}
+            ],
+            "rows": [
+              ["ship-100", "Dallas", "Chicago", "2026-04-10", 26],
+              ["ship-101", "Atlanta", "Miami", "2026-04-05", 21],
+              ["ship-102", "Nashville", "Dallas", "2026-03-25", 10]
+            ]
+          }
+        ],
+        "actions": [],
+        "policy": {
+          "permission_context_applied": true,
+          "sensitive_fields_redacted": true,
+          "write_confirmation_required": false,
+          "denial_reason_class": null
+        },
+        "audit": {
+          "actor_role": "broker",
+          "office_scope": "memphis",
+          "tool_path": [
+            "shipment_exception_lookup"
+          ],
+          "response_generated_at": "2026-03-15T14:04:00Z"
+        }
+      },
+      "captured_latency_ms": 312
+    },
+    {
+      "scenario_id": "deny_cross_office_broker",
+      "intent_class": "read_denied",
+      "actor_role": "broker",
+      "prompt": "Compare Memphis and Atlanta on-time rates this quarter.",
+      "expected_gate": "deny",
+      "expected_tool_path": [],
+      "expected_response_components": [
+        "message_block"
+      ],
+      "assertions": [
+        "denial_reason_permission",
+        "no_tool_execution",
+        "no_cross_office_data"
+      ],
+      "captured_response": {
+        "contract_version": "0.1.0",
+        "response_id": "resp-deny-001",
+        "request_id": "req-deny-001",
+        "trace_id": "trace-deny-001",
+        "session_id": "chat_s_20260315_0006",
+        "conversation_scope": "global",
+        "context_binding_state": "bound",
+        "screen_sync_state": "not_applicable",
+        "active_resource": null,
+        "intent_class": "read_denied",
+        "status": "denied",
+        "summary": "Cannot compare on-time rates across offices. Requested data is outside Memphis office scope.",
+        "follow_up_prompt": "Please request Atlanta-specific data through your Atlanta office channel.",
+        "components": [
+          {
+            "component_id": "msg-deny-001",
+            "component_type": "message_block",
+            "body": "Access denied: cross-office data requests are not permitted in the current PoC scope.",
+            "tone": "error"
+          }
+        ],
+        "actions": [],
+        "policy": {
+          "permission_context_applied": true,
+          "sensitive_fields_redacted": true,
+          "write_confirmation_required": false,
+          "denial_reason_class": "permission"
+        },
+        "audit": {
+          "actor_role": "broker",
+          "office_scope": "memphis",
+          "tool_path": [],
+          "response_generated_at": "2026-03-15T14:05:00Z"
+        }
+      }
+    },
+    {
+      "scenario_id": "booking_confirmation_happy_path",
+      "intent_class": "write_confirmation_required",
+      "actor_role": "broker",
+      "prompt": "Book quote 88219 with carrier 4412 for Tuesday pickup.",
+      "expected_gate": "confirmation_required",
+      "expected_tool_path": [
+        "booking_create_prepare"
+      ],
+      "expected_response_components": [
+        "confirmation_card"
+      ],
+      "assertions": [
+        "confirmation_token_present",
+        "no_write_without_confirmation",
+        "audit_stub_present"
+      ],
+      "captured_response": {
+        "contract_version": "0.1.0",
+        "response_id": "resp-confirm-001",
+        "request_id": "req-confirm-001",
+        "trace_id": "trace-confirm-001",
+        "session_id": "chat_s_20260315_0007",
+        "conversation_scope": "global",
+        "context_binding_state": "bound",
+        "screen_sync_state": "not_applicable",
+        "active_resource": null,
+        "intent_class": "write_confirmation_required",
+        "status": "confirmation_required",
+        "summary": "Booking quote 88219 is ready for confirmation. Carrier: Acme Freight, Pickup: Tuesday March 17.",
+        "follow_up_prompt": "Confirm to execute booking.",
+        "components": [
+          {
+            "component_id": "card-confirm-001",
+            "component_type": "confirmation_card",
+            "title": "Confirm Booking",
+            "action_name": "booking_create_confirmed",
+            "confirmation_token": "confirm-quote-88219",
+            "expires_at": "2026-03-15T16:00:00Z",
+            "fields": [
+              {"key": "quote_id", "label": "Quote ID", "value": "88219"},
+              {"key": "carrier", "label": "Carrier", "value": "Acme Freight (4412)"},
+              {"key": "pickup_date", "label": "Pickup Date", "value": "2026-03-17"},
+              {"key": "origin", "label": "Origin", "value": "Dallas"},
+              {"key": "destination", "label": "Destination", "value": "Chicago"}
+            ]
+          }
+        ],
+        "actions": [
+          {
+            "action_id": "act-confirm-booking",
+            "label": "Confirm Booking",
+            "action_type": "confirm_booking",
+            "resource_type": "shipment",
+            "resource_id": "quote-88219",
+            "surface": "chat",
+            "requires_confirmation": true,
+            "enabled": true,
+            "disabled_reason": null,
+            "server_endpoint": {
+              "method": "POST",
+              "path": "/actions/confirm"
+            },
+            "permission_scope": {
+              "office_id": "memphis",
+              "role": "broker",
+              "broker_id": "broker-mem-001"
+            },
+            "confirmation_token": "confirm-quote-88219",
+            "confirmation_expires_at": "2026-03-15T16:00:00Z",
+            "idempotency_key": "book-quote-88219-v1",
+            "ui_behavior": {
+              "success_mode": "chat_only",
+              "failure_mode": "show_failure_message",
+              "post_success_refresh": ["dispatch_board"]
+            }
+          },
+          {
+            "action_id": "act-cancel-booking",
+            "label": "Cancel",
+            "action_type": "cancel_booking",
+            "resource_type": "shipment",
+            "resource_id": "quote-88219",
+            "surface": "chat",
+            "requires_confirmation": false,
+            "enabled": true,
+            "disabled_reason": null
+          }
+        ],
+        "policy": {
+          "permission_context_applied": true,
+          "sensitive_fields_redacted": true,
+          "write_confirmation_required": true,
+          "denial_reason_class": null
+        },
+        "audit": {
+          "actor_role": "broker",
+          "office_scope": "memphis",
+          "tool_path": [
+            "booking_create_prepare"
+          ],
+          "response_generated_at": "2026-03-15T14:06:00Z"
+        }
+      }
+    },
+    {
+      "scenario_id": "booking_submit_after_confirmation",
+      "intent_class": "write_submitted",
+      "actor_role": "broker",
+      "prompt": "Confirm booking quote 88219 with carrier 4412 for Tuesday pickup.",
+      "expected_gate": "allow",
+      "expected_tool_path": [
+        "booking_create_confirmed"
+      ],
+      "expected_response_components": [
+        "message_block"
+      ],
+      "assertions": [
+        "confirmation_token_validated",
+        "resource_state_revalidated",
+        "audit_record_present"
+      ],
+      "captured_write_result": {
+        "status": "submitted",
+        "action_name": "booking_create_confirmed",
+        "quote_id": "quote-88219",
+        "booking_id": "booking-88219-001",
+        "confirmation_token": "confirm-quote-88219",
+        "office_id": "memphis",
+        "actor_broker_id": "broker-mem-001",
+        "carrier_id": "carrier-4412",
+        "pickup_date": "2026-03-17",
+        "audit": {
+          "tool_path": [
+            "booking_create_confirmed"
+          ],
+          "idempotency_key": "book-quote-88219-v1",
+          "outcome": "submitted",
+          "outcome_recorded_at": "2026-03-15T14:07:00Z",
+          "actor_broker_id": "broker-mem-001",
+          "office_id": "memphis"
+        }
+      },
+      "captured_write_replay": {
+        "status": "submitted",
+        "action_name": "booking_create_confirmed",
+        "quote_id": "quote-88219",
+        "booking_id": "booking-88219-001",
+        "confirmation_token": "confirm-quote-88219",
+        "office_id": "memphis",
+        "actor_broker_id": "broker-mem-001",
+        "carrier_id": "carrier-4412",
+        "pickup_date": "2026-03-17",
+        "audit": {
+          "tool_path": [
+            "booking_create_confirmed"
+          ],
+          "idempotency_key": "book-quote-88219-v1",
+          "outcome": "submitted",
+          "outcome_recorded_at": "2026-03-15T14:07:00Z",
+          "actor_broker_id": "broker-mem-001",
+          "office_id": "memphis"
+        }
+      }
+    },
+    {
+      "scenario_id": "booking_submit_idempotent_replay",
+      "intent_class": "write_submitted",
+      "actor_role": "broker",
+      "prompt": "Confirm booking quote 88219 with carrier 4412 for Tuesday pickup again with the same confirmation.",
+      "expected_gate": "allow",
+      "expected_tool_path": [
+        "booking_create_confirmed"
+      ],
+      "expected_response_components": [
+        "message_block"
+      ],
+      "assertions": [
+        "confirmation_token_validated",
+        "resource_state_revalidated",
+        "audit_record_present",
+        "idempotent_replay_linked",
+        "action_outcome_timestamp_present"
+      ],
+      "captured_write_result": {
+        "status": "submitted",
+        "action_name": "booking_create_confirmed",
+        "quote_id": "quote-88219",
+        "booking_id": "booking-88219-001",
+        "confirmation_token": "confirm-quote-88219",
+        "office_id": "memphis",
+        "actor_broker_id": "broker-mem-001",
+        "carrier_id": "carrier-4412",
+        "pickup_date": "2026-03-17",
+        "audit": {
+          "tool_path": [
+            "booking_create_confirmed"
+          ],
+          "idempotency_key": "book-quote-88219-v1",
+          "outcome": "submitted",
+          "outcome_recorded_at": "2026-03-15T14:08:00Z",
+          "actor_broker_id": "broker-mem-001",
+          "office_id": "memphis"
+        }
+      },
+      "captured_write_replay": {
+        "status": "submitted",
+        "action_name": "booking_create_confirmed",
+        "quote_id": "quote-88219",
+        "booking_id": "booking-88219-001",
+        "confirmation_token": "confirm-quote-88219",
+        "office_id": "memphis",
+        "actor_broker_id": "broker-mem-001",
+        "carrier_id": "carrier-4412",
+        "pickup_date": "2026-03-17",
+        "audit": {
+          "tool_path": [
+            "booking_create_confirmed"
+          ],
+          "idempotency_key": "book-quote-88219-v1",
+          "outcome": "submitted",
+          "outcome_recorded_at": "2026-03-15T14:08:00Z",
+          "actor_broker_id": "broker-mem-001",
+          "office_id": "memphis"
+        }
+      }
+    },
+    {
+      "scenario_id": "booking_deny_without_confirmation",
+      "intent_class": "write_denied",
+      "actor_role": "broker",
+      "prompt": "Book quote 88219 with carrier 4412 now. Skip confirmation.",
+      "expected_gate": "deny",
+      "expected_tool_path": [],
+      "expected_response_components": [
+        "message_block"
+      ],
+      "assertions": [
+        "denial_reason_unsupported_or_missing_confirmation",
+        "no_write_executed"
+      ],
+      "captured_response": {
+        "contract_version": "0.1.0",
+        "response_id": "resp-deny-002",
+        "request_id": "req-deny-002",
+        "trace_id": "trace-deny-002",
+        "session_id": "chat_s_20260315_0010",
+        "conversation_scope": "global",
+        "context_binding_state": "bound",
+        "screen_sync_state": "not_applicable",
+        "active_resource": null,
+        "intent_class": "write_denied",
+        "status": "denied",
+        "summary": "Booking denied. Confirmation flow is required for write operations. Please use the confirmation card to proceed.",
+        "follow_up_prompt": "Use the confirmation card to execute this booking.",
+        "components": [
+          {
+            "component_id": "msg-deny-002",
+            "component_type": "message_block",
+            "body": "Booking denied: confirmation required for write operations. The confirmation card must be used to proceed.",
+            "tone": "error"
+          }
+        ],
+        "actions": [],
+        "policy": {
+          "permission_context_applied": true,
+          "sensitive_fields_redacted": true,
+          "write_confirmation_required": false,
+          "denial_reason_class": "unsupported_request"
+        },
+        "audit": {
+          "actor_role": "broker",
+          "office_scope": "memphis",
+          "tool_path": [],
+          "response_generated_at": "2026-03-15T14:09:00Z"
+        }
+      }
+    },
+    {
+      "scenario_id": "deny_sensitive_field_probe",
+      "intent_class": "read_denied",
+      "actor_role": "broker",
+      "prompt": "Show carrier_rate and shipper_rate for the Dallas to Chicago lane.",
+      "expected_gate": "deny",
+      "expected_tool_path": [],
+      "expected_response_components": [
+        "message_block"
+      ],
+      "assertions": [
+        "denial_reason_sensitive_field",
+        "no_sensitive_fields"
+      ],
+      "captured_response": {
+        "contract_version": "0.1.0",
+        "response_id": "resp-deny-003",
+        "request_id": "req-deny-003",
+        "trace_id": "trace-deny-003",
+        "session_id": "chat_s_20260315_0011",
+        "conversation_scope": "global",
+        "context_binding_state": "bound",
+        "screen_sync_state": "not_applicable",
+        "active_resource": null,
+        "intent_class": "read_denied",
+        "status": "denied",
+        "summary": "Access denied: carrier_rate and shipper_rate are protected fields. This data is not available in the current PoC scope.",
+        "follow_up_prompt": "Contact your operations manager if you need access to rate information.",
+        "components": [
+          {
+            "component_id": "msg-deny-003",
+            "component_type": "message_block",
+            "body": "Access denied: requested fields are protected. Carrier and shipper rates are not available in the current scope.",
+            "tone": "error"
+          }
+        ],
+        "actions": [],
+        "policy": {
+          "permission_context_applied": true,
+          "sensitive_fields_redacted": true,
+          "write_confirmation_required": false,
+          "denial_reason_class": "sensitive_field"
+        },
+        "audit": {
+          "actor_role": "broker",
+          "office_scope": "memphis",
+          "tool_path": [],
+          "response_generated_at": "2026-03-15T14:10:00Z"
+        }
+      }
+    }
+  ]
+}

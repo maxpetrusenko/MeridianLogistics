@@ -73,4 +73,61 @@ CREATE TABLE booking_confirmations (
     expires_at TIMESTAMPTZ NOT NULL
 );
 
+CREATE TABLE chat_sessions (
+    session_id TEXT PRIMARY KEY,
+    session_access_token TEXT,
+    office_id TEXT NOT NULL REFERENCES offices (office_id),
+    broker_id TEXT NOT NULL REFERENCES brokers (broker_id),
+    role TEXT NOT NULL,
+    current_module TEXT NOT NULL,
+    conversation_scope TEXT NOT NULL,
+    context_binding_state TEXT NOT NULL,
+    screen_sync_state TEXT NOT NULL,
+    active_resource_type TEXT,
+    active_resource_id TEXT,
+    active_resource_fingerprint TEXT,
+    last_response_id TEXT,
+    last_job_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE generation_jobs (
+    job_id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES chat_sessions (session_id),
+    office_id TEXT NOT NULL REFERENCES offices (office_id),
+    broker_id TEXT NOT NULL REFERENCES brokers (broker_id),
+    job_kind TEXT NOT NULL,
+    job_status TEXT NOT NULL,
+    progress_message TEXT NOT NULL,
+    retry_allowed BOOLEAN NOT NULL DEFAULT FALSE,
+    pending_response_id TEXT,
+    completed_response_id TEXT,
+    prepared_result_payload JSONB,
+    result_payload JSONB,
+    job_poll_token TEXT,
+    completion_refreshes_remaining INTEGER,
+    completion_ready_at DOUBLE PRECISION,
+    artifact_key TEXT,
+    artifact_mime_type TEXT,
+    artifact_size_bytes BIGINT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ
+);
+
+CREATE TABLE documents_manifest (
+    document_id TEXT PRIMARY KEY,
+    job_id TEXT REFERENCES generation_jobs (job_id),
+    office_id TEXT NOT NULL REFERENCES offices (office_id),
+    broker_id TEXT REFERENCES brokers (broker_id),
+    document_kind TEXT NOT NULL,
+    object_key TEXT NOT NULL,
+    storage_provider TEXT NOT NULL DEFAULT 'backblaze_b2',
+    mime_type TEXT NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    checksum_sha256 TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 COMMIT;

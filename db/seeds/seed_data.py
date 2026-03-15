@@ -29,7 +29,7 @@ def build_seed_bundle() -> dict[str, object]:
                 "carrier_name": "Acme Freight",
                 "shipment_mode": "FTL",
                 "on_time_rate": 97.2,
-                "insurance_expiry_date": "2026-04-15",
+                "insurance_expiry_date": "2026-04-10",
             }
         ],
         "shipment_quotes": [
