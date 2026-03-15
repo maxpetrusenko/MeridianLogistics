@@ -1,0 +1,64 @@
+{
+  "checkpoint_id": "controller-write-path-closeout-2026-03-14-2117",
+  "checkpoint_version": "0.1.0",
+  "created_at": "2026-03-14T21:17:00-04:00",
+  "protected_core": {
+    "task_goal": "Close the repaired real write execution path and advance controller truth into the next eligible async job lifecycle wave.",
+    "expected_output": "Fresh controller checkpoint and report plus aligned dispatch and ledger truth for write-path acceptance and async-wave promotion.",
+    "current_step": "Record repaired write-path acceptance, preserve non-terminal queue truth, and activate async job lifecycle expansion as the next auto wave.",
+    "resume_point": "Continue async job lifecycle expansion with durable job state, result linkage, and reopen-safe visibility.",
+    "hard_constraints": [
+      "Accepted contracts remain frozen.",
+      "Only controller may emit final ABORT.",
+      "Missing evidence fails soft to HOLD or REVIEW, never ABORT.",
+      "Do not enable controller flags globally unless explicitly requested.",
+      "Do not reopen closed lanes without the required exact blocker packet."
+    ],
+    "business_invariants": [
+      "Memphis-only 90 day PoC scope remains frozen.",
+      "Instinct8 runtime-hook capability stays additive and default-off.",
+      "Real write execution path is closed with fresh post-repair verification.",
+      "Async job lifecycle expansion is the next active delivery wave."
+    ]
+  },
+  "compaction": {
+    "strategy_name": "Strategy B - Codex-Style Checkpoint",
+    "compaction_sequence": 11,
+    "halo_summary": "Write-path repair is accepted, queue truth is advanced, and async job lifecycle expansion is now the active non-terminal auto wave across controller surfaces.",
+    "recent_turn_ids": [],
+    "drift_status": "stable"
+  },
+  "validated_artifacts": [
+    "dispatch-board.md",
+    "artifact-ledger.md",
+    "decisions.md",
+    "runbook.md",
+    "backend/app/gateway/booking_actions.py",
+    "backend/app/gateway/idempotency_store.py",
+    "tests/b2b3/test_b2b3_scaffold.py",
+    "contracts/tests/validate_active_contracts.py",
+    "reports/2026-03-14-1922-controller-write-path-resync-checkpoint.json",
+    "reports/2026-03-14-1922-controller-write-path-resync-report.md",
+    "contracts/controller-checkpoint-schema.json"
+  ],
+  "active_failure_signal": {
+    "kind": "none",
+    "severity": "none",
+    "source": "controller",
+    "details": null
+  },
+  "controller_last_decision": {
+    "action": "continue",
+    "reason": "write_path_closeout_async_job_wave_active",
+    "source": "controller"
+  },
+  "queue": {
+    "wave_name": "async job lifecycle expansion",
+    "status": "active",
+    "run_policy": "auto",
+    "eligible": true,
+    "requires_explicit_request": false,
+    "approval_authority": "main"
+  },
+  "terminal_state": null
+}

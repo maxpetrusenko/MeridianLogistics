@@ -2,7 +2,7 @@
 
 Agent: controller
 Status: done
-Mission: supersede stale closeout truth after the approval-authority split so controller queue, checkpoint, report, and dispatch semantics agree again
+Mission: supersede stale closeout truth after the approval-authority split so Main continues automatically into the real write execution path
 Owned artifact:
 - `dispatch-board.md`
 - `artifact-ledger.md`
@@ -32,10 +32,10 @@ Supersedes:
 - `reports/2026-03-14-1352-controlled-flag-on-validation-report.md`
 
 Findings:
-- Internal approval authority is now separate from `run_policy`.
-- The `1352` closeout used the older semantics that rewrote `Controlled Flag-On Validation` to `auto` and marked terminal state `DONE`.
-- Current controller behavior keeps `Controlled Flag-On Validation` as `explicit_request`, marks it `eligible: true`, clears `requires_explicit_request`, and records `approval_authority: main`.
-- Current controller state is non-terminal because `Controlled Flag-On Validation` is the active internal-approved wave.
+- Controller policy already requires automatic continuation across eligible `auto` waves and terminal stops only on `DONE`, `BLOCKED`, `WAITING_USER_APPROVAL`, or `ABORTED`.
+- Approval authority remains separate from `run_policy`; the active delivery wave is `real write execution path`, not `Controlled Flag-On Validation`.
+- Current controller truth is non-terminal: `real write execution path` is active with `run_policy: auto`, `eligible: true`, `approval_authority: main`, and `terminal_state: null`.
+- Dispatch, ledger, checkpoint, and report truth now agree on the same active write-path wave.
 
 Artifacts produced:
 - `reports/2026-03-14-1439-controller-approval-authority-resync-checkpoint.json`
@@ -47,7 +47,7 @@ Decisions needed:
 - none
 
 Next actions:
-- continue `Controlled Flag-On Validation` from the active controller-owned wave state
+- continue `real write execution path` without pausing for status-only updates
 
 Next consumer:
 - controller
@@ -55,11 +55,23 @@ Next consumer:
 Gate result:
 - accepted
 
+Lane closed:
+- true
+
 Resume point:
-- `Controlled Flag-On Validation` is active, `explicit_request`, `eligible: true`, and Main-owned; continue execution without asking the user
+- start `real write execution path` in `backend/app/gateway/`, `backend/app/orchestrator/`, and write-path tests with persisted outcome, stale-resource recheck, and idempotent replay as the success check
 
 Hard stop candidate:
 - none
+
+Next wave packet:
+- `wave_name`: `real write execution path`
+- `owner`: `Backend integration engineer`
+- `run_policy`: `auto`
+- `eligible`: `true`
+- `approval_authority`: `main`
+- `success_check`: write execution persists outcome, replays safely, and rejects stale or conflicting submissions deterministically
+- `why_next`: read-path results are now real, so the remaining product gap is confirmed write execution
 
 Checkpoint:
 - `reports/2026-03-14-1439-controller-approval-authority-resync-checkpoint.json`

@@ -1,0 +1,69 @@
+{
+  "checkpoint_id": "controller-review-lane-contract-closeout-2026-03-15-1454",
+  "checkpoint_version": "0.1.0",
+  "created_at": "2026-03-15T14:54:16-04:00",
+  "protected_core": {
+    "task_goal": "Merge approved review-lane contract closure into controller truth without closing the active async delivery wave.",
+    "expected_output": "Fresh controller checkpoint and report plus aligned dispatch and ledger truth for review-lane contract closure only.",
+    "current_step": "Record bounded review packet approval, preserve active async wave truth, and continue automatic wave execution.",
+    "resume_point": "Continue async job lifecycle expansion with durable job state, result linkage, and reopen-safe visibility.",
+    "hard_constraints": [
+      "Accepted contracts remain frozen.",
+      "Only controller may emit final ABORT.",
+      "Missing evidence fails soft to HOLD or REVIEW, never ABORT.",
+      "Do not enable controller flags globally unless explicitly requested.",
+      "Do not mark the full async job lifecycle wave complete from review-lane contract closure alone."
+    ],
+    "business_invariants": [
+      "Memphis-only 90 day PoC scope remains frozen.",
+      "Review lane contract is enforced across prompts, rules, and tests.",
+      "Bounded review packet set is approved with literal review status APPROVE.",
+      "Async job lifecycle expansion remains the active non-terminal auto wave."
+    ]
+  },
+  "compaction": {
+    "strategy_name": "Strategy B - Codex-Style Checkpoint",
+    "compaction_sequence": 12,
+    "halo_summary": "Review-lane contract closure is merged into controller truth, packet approval is recorded, and async job lifecycle expansion remains the active non-terminal auto wave.",
+    "recent_turn_ids": [],
+    "drift_status": "stable"
+  },
+  "validated_artifacts": [
+    "dispatch-board.md",
+    "artifact-ledger.md",
+    "decisions.md",
+    "runbook.md",
+    ".agents/agents/review.md",
+    ".agents/agents/main.md",
+    "reports/README.md",
+    "tests/controller/test_controller_policy.py",
+    "tests/controller/test_review_lane_contract.py",
+    "tests/controller/test_review_lane_truth_merge.py",
+    "reports/2026-03-15-review-packet-01-agent-prompts.md",
+    "reports/2026-03-15-review-packet-02-report-rules.md",
+    "reports/2026-03-15-review-packet-03-regression-tests.md",
+    "reports/2026-03-14-2117-controller-write-path-closeout-checkpoint.json",
+    "reports/2026-03-14-2117-controller-write-path-closeout-report.md",
+    "contracts/controller-checkpoint-schema.json"
+  ],
+  "active_failure_signal": {
+    "kind": "none",
+    "severity": "none",
+    "source": "controller",
+    "details": null
+  },
+  "controller_last_decision": {
+    "action": "continue",
+    "reason": "review_lane_contract_closure_merged",
+    "source": "controller"
+  },
+  "queue": {
+    "wave_name": "async job lifecycle expansion",
+    "status": "active",
+    "run_policy": "auto",
+    "eligible": true,
+    "requires_explicit_request": false,
+    "approval_authority": "main"
+  },
+  "terminal_state": null
+}

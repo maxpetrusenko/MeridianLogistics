@@ -27,4 +27,4 @@ packages = ["backend", "evals"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-testpaths = ["contracts/tests"]
+testpaths = ["contracts/tests", "tests"]
