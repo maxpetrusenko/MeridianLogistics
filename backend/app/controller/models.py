@@ -24,7 +24,6 @@ ApprovalAuthority = Literal["main", "user"]
 ControllerTerminalState = Literal[
     "DONE",
     "BLOCKED",
-    "WAITING_APPROVAL",
     "WAITING_USER_APPROVAL",
     "ABORTED",
 ] | None

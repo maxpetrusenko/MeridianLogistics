@@ -10,7 +10,6 @@ from backend.app.controller.models import FailureSignal
 TerminalState = Literal[
     "DONE",
     "BLOCKED",
-    "WAITING_APPROVAL",
     "WAITING_USER_APPROVAL",
     "ABORTED",
 ] | None
