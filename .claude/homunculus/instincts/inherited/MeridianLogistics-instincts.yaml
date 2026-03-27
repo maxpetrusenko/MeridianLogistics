@@ -1,0 +1,427 @@
+# Instincts generated from https://github.com/maxpetrusenko/MeridianLogistics
+# Generated: 2026-03-15T20:15:48.177Z
+# Version: 2.0
+
+---
+id: MeridianLogistics-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/maxpetrusenko/MeridianLogistics
+---
+
+# MeridianLogistics Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: fix, docs, feat, test, chore
+
+## Evidence
+
+- 9 commits analyzed
+- Detected conventional commit pattern
+- Examples: fix: remove legacy WAITING_APPROVAL enum from controller runtime, test: add same-turn wave promotion regression
+
+---
+id: MeridianLogistics-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/maxpetrusenko/MeridianLogistics
+---
+
+# MeridianLogistics Commit Length
+
+## Action
+
+Keep commit messages concise (under 50 characters)
+
+## Evidence
+
+- Average commit message length: 49 chars
+- Based on 9 commits
+
+---
+id: MeridianLogistics-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/maxpetrusenko/MeridianLogistics
+---
+
+# MeridianLogistics Naming Files
+
+## Action
+
+Use kebab-case naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: kebab-case
+
+---
+id: MeridianLogistics-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/maxpetrusenko/MeridianLogistics
+---
+
+# MeridianLogistics Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: MeridianLogistics-workflow-database-migration
+trigger: "when modifying the database schema or adding tables"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/maxpetrusenko/MeridianLogistics
+---
+
+# MeridianLogistics Workflow Database Migration
+
+## Action
+
+Follow the database-migration workflow:
+1. Create migration file
+2. Update schema definitions
+3. Generate/update types
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~10x per month
+- Files: **/schema.*, migrations/*
+
+---
+id: MeridianLogistics-workflow-enum-state-alignment
+trigger: "when doing enum state alignment"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/maxpetrusenko/MeridianLogistics
+---
+
+# MeridianLogistics Workflow Enum State Alignment
+
+## Action
+
+Follow the enum-state-alignment workflow:
+1. Update enum in models.py
+2. Update enum in policy.py
+3. Update documentation references
+4. Update test files to reflect new naming
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: backend/app/controller/models.py, backend/app/controller/policy.py, docs/plans/*.md
+
+---
+id: MeridianLogistics-workflow-controller-feature-development
+trigger: "when doing controller feature development"
+confidence: 0.55
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/maxpetrusenko/MeridianLogistics
+---
+
+# MeridianLogistics Workflow Controller Feature Development
+
+## Action
+
+Follow the controller-feature-development workflow:
+1. Create plan document
+2. Add failing tests (TDD)
+3. Implement runtime changes
+4. Update controller models
+5. Update documentation
+6. Verify all tests pass
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~1x per month
+- Files: docs/plans/*.md, backend/app/controller/runtime.py, backend/app/controller/models.py
+
+---
+id: MeridianLogistics-workflow-documentation-sync
+trigger: "when doing documentation sync"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/maxpetrusenko/MeridianLogistics
+---
+
+# MeridianLogistics Workflow Documentation Sync
+
+## Action
+
+Follow the documentation-sync workflow:
+1. Update runtime implementation
+2. Update decisions.md
+3. Update runbook.md
+4. Update reports/README.md
+5. Update agent prompts
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: backend/app/controller/runtime.py, decisions.md, runbook.md
+
+---
+id: meridianlogistics-conventional-commits
+trigger: "When writing a commit message"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: maxpetrusenko/MeridianLogistics
+---
+
+# Meridianlogistics Conventional Commits
+
+## Action
+
+Use conventional commit format with prefixes: fix, docs, feat, test, chore
+
+## Evidence
+
+- All 8 example commits follow conventional format
+- Consistent use of fix:, docs:, feat:, test:, chore: prefixes
+
+---
+id: meridianlogistics-commit-length
+trigger: "When writing a commit message"
+confidence: 0.7
+domain: git
+source: repo-analysis
+source_repo: maxpetrusenko/MeridianLogistics
+---
+
+# Meridianlogistics Commit Length
+
+## Action
+
+Keep commit message under 60 characters (average observed: 49)
+
+## Evidence
+
+- Average commit length is 49 characters
+- All example commits are concise
+
+---
+id: meridianlogistics-kebab-case-files
+trigger: "When creating new files"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: maxpetrusenko/MeridianLogistics
+---
+
+# Meridianlogistics Kebab Case Files
+
+## Action
+
+Use kebab-case for file names
+
+## Evidence
+
+- Naming conventions specify kebab-case for files
+- Repository structure follows this pattern
+
+---
+id: meridianlogistics-camelcase-functions
+trigger: "When writing Python functions"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: maxpetrusenko/MeridianLogistics
+---
+
+# Meridianlogistics Camelcase Functions
+
+## Action
+
+Use camelCase for function names
+
+## Evidence
+
+- Code style specifies camelCase for functions
+- Primary language is Python
+
+---
+id: meridianlogistics-pascalcase-classes
+trigger: "When creating Python classes"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: maxpetrusenko/MeridianLogistics
+---
+
+# Meridianlogistics Pascalcase Classes
+
+## Action
+
+Use PascalCase for class names
+
+## Evidence
+
+- Code style specifies PascalCase for classes
+- Standard Python convention
+
+---
+id: meridianlogistics-screaming-snake-constants
+trigger: "When defining constants"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: maxpetrusenko/MeridianLogistics
+---
+
+# Meridianlogistics Screaming Snake Constants
+
+## Action
+
+Use SCREAMING_SNAKE_CASE for constants
+
+## Evidence
+
+- Code style specifies SCREAMING_SNAKE_CASE
+- Seen in WAITING_APPROVAL enum examples
+
+---
+id: meridianlogistics-absolute-imports
+trigger: "When importing modules"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: maxpetrusenko/MeridianLogistics
+---
+
+# Meridianlogistics Absolute Imports
+
+## Action
+
+Use absolute import paths
+
+## Evidence
+
+- Import style specified as absolute
+- Single-package architecture supports this
+
+---
+id: meridianlogistics-enum-alignment-workflow
+trigger: "When renaming or removing enum states"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: maxpetrusenko/MeridianLogistics
+---
+
+# Meridianlogistics Enum Alignment Workflow
+
+## Action
+
+Update models.py, policy.py, documentation, and tests in sequence
+
+## Evidence
+
+- enum-state-alignment workflow documented
+- Commits show WAITING_APPROVAL → WAITING_USER_APPROVAL pattern
+
+---
+id: meridianlogistics-controller-feature-tdd
+trigger: "When implementing new controller features"
+confidence: 0.95
+domain: workflow
+source: repo-analysis
+source_repo: maxpetrusenko/MeridianLogistics
+---
+
+# Meridianlogistics Controller Feature Tdd
+
+## Action
+
+Start with plan document, then failing tests, then implementation
+
+## Evidence
+
+- controller-feature-development workflow shows TDD approach
+- Consistent pattern in commits
+
+---
+id: meridianlogistics-docs-sync
+trigger: "When controller behavior changes"
+confidence: 0.8
+domain: workflow
+source: repo-analysis
+source_repo: maxpetrusenko/MeridianLogistics
+---
+
+# Meridianlogistics Docs Sync
+
+## Action
+
+Update runtime, decisions.md, runbook.md, reports/README.md, and agent prompts
+
+## Evidence
+
+- documentation-sync workflow documented
+- Multiple docs files need alignment
+
+---
+id: meridianlogistics-test-regression
+trigger: "When adding tests"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: maxpetrusenko/MeridianLogistics
+---
+
+# Meridianlogistics Test Regression
+
+## Action
+
+Include regression test descriptions like 'same-turn wave promotion regression'
+
+## Evidence
+
+- Commit: 'test: add same-turn wave promotion regression'
+- Specific regression testing pattern
+
+---
+id: meridianlogistics-backend-structure
+trigger: "When organizing backend code"
+confidence: 0.8
+domain: architecture
+source: repo-analysis
+source_repo: maxpetrusenko/MeridianLogistics
+---
+
+# Meridianlogistics Backend Structure
+
+## Action
+
+Place controller logic in backend/app/controller/ with separate models.py, runtime.py, policy.py
+
+## Evidence
+
+- Consistent backend/app/controller structure in workflows
+- Separation of models, runtime, and policy concerns
+
